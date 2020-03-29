@@ -102,13 +102,21 @@ void BufferInterface::FillBuffer(uint64_t address, Type iswhat)
 			flag.x_row = true;
 			break;
 		case WEIGHT:
-			uint64_t row = address / (UNIT_INT_BYTE * weightsize.tuple[1]);
-			uint64_t col = (address - row * weightsize.tuple[1] * UNIT_INT_BYTE) / UNIT_INT_BYTE;
-			WB_Data insert = {row, col, 1};
-			weightbuffer.active.push_back(insert);
-			if(weightbuffer.remain_space >= MAX_READ_BYTE) // 꽉 차기 전까지만
-				weightbuffer.remain_space -= MAX_READ_BYTE;
+			if(!isExist(address))
+			{
+				uint64_t row = address / (UNIT_INT_BYTE * weightsize.tuple[1]);
+				uint64_t col = (address - row * weightsize.tuple[1] * UNIT_INT_BYTE) / UNIT_INT_BYTE;
+				WB_Data insert = {row, col, 1};
+				weightbuffer.active.push_back(insert);
+				if(weightbuffer.remain_space >= MAX_READ_BYTE) // 꽉 차기 전까지만
+					weightbuffer.remain_space -= MAX_READ_BYTE;
+			}
+			else
+			{
+				present_w_req -= MAX_READ_BYTE;
+			}
 			flag.weight = true;
+			
 			break;
 	}
 }
