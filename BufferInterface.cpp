@@ -36,6 +36,7 @@ BufferInterface::BufferInterface(uint64_t axbuffersize,
 	this->weightbuffersize = weightbuffersize;
 
 	present_ax_req = 0;
+	present_w_req = 0;
 
 	flag = {false, false, false, false, false, false, false};
 	aux_flag = {false, false, false, false, false, false, false};
@@ -446,13 +447,14 @@ bool BufferInterface::AuxAColEnd()
 */
 bool BufferInterface::canRequest()
 {
-	if(weightbuffer.remain_space >= MAX_READ_BYTE) // 버퍼가 아직 다 안채워진 경우 -> 가능
+	if(weightbuffersize - present_w_req >= MAX_READ_BYTE) // 버퍼가 아직 다 안채워진 경우 -> 가능
 	{
 		return true;
 	}
 	else if(!weightbuffer.expire.empty()) // 버퍼 내에 삭제 가능한 데이터가 있는 경우 -> 가능
 	{
 		weightbuffer.expire.erase(weightbuffer.expire.begin());
+		present_w_req -= MAX_READ_BYTE;
 		return true;
 	}
 	else // 모든 데이터가 사용중이므로 request 불가?
