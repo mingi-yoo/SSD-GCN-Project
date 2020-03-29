@@ -185,6 +185,13 @@ void BufferInterface::Reset()
 	aux_axbuffer.colindex = 0;
 	aux_axbuffer.rowindex = 0;
 
+	present_ax_req = 0;
+	
+	weightbuffer.remain_space = weightbuffersize;
+	weightbuffer.active.clear();
+	weightbuffer.expire.clear();
+	present_w_req = 0;
+
 	flag = {false, false, false, false, false, false, false};
 	aux_flag = {false, false, false, false, false, false, false};
 	present = {0, 0, 0, 0};
