@@ -71,7 +71,6 @@ public:
 	//weight용
 	bool canRequest();
 	bool isExist(uint64_t address); //weight or xw계산한 값 존재?
-	void MACEnd();
 	bool Expire(uint64_t address);
 	//테스트용
 	void print_status();

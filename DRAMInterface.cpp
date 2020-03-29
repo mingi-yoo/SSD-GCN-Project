@@ -50,7 +50,7 @@ void DRAMInterface::ReadCompleteCallback(unsigned id, uint64_t address, uint64_t
 	buffer->FillBuffer(address, belong);
 	if (belong == WEIGHT)
 	{
-		buffer->present_w_req -= MAX_READ_BYTE;
+		//buffer->present_w_req -= MAX_READ_BYTE; // 필요없음
 		buffer->isready = true;
 	}
 	else

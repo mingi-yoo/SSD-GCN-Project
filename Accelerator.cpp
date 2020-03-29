@@ -189,6 +189,7 @@ void Accelerator::RequestControllerRun()
 			{
 				dram->DRAMRequest(address, false);
 				cout<<"Weight Request... Address: "<<hex<<address<<endl;
+				buffer->present_w_req += MAX_READ_BYTE;
 			}
 			if (!buffer->XColEnd() && !buffer->XValEnd() && remain_col_num == 0)
 			{
@@ -237,6 +238,7 @@ void Accelerator::RequestControllerRun()
 			{
 				dram->DRAMRequest(address, false);
 				cout<<"Weight Request... Address: "<<hex<<address<<endl;
+				buffer->present_w_req += MAX_READ_BYTE;
 			}
 			if (!buffer->AColEnd() && remain_col_num == 0)
 			{
@@ -273,7 +275,6 @@ void Accelerator::RequestControllerRun()
 					buffer->PopData(A_ROW);
 			}
 		}
-		buffer->present_w_req += MAX_READ_BYTE;	
 	}
 	else
 	{

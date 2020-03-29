@@ -36,6 +36,7 @@ BufferInterface::BufferInterface(uint64_t axbuffersize,
 	this->weightbuffersize = weightbuffersize;
 
 	present_ax_req = 0;
+	present_w_req = 0;
 
 	flag = {false, false, false, false, false, false, false};
 	aux_flag = {false, false, false, false, false, false, false};
@@ -103,7 +104,7 @@ void BufferInterface::FillBuffer(uint64_t address, Type iswhat)
 		case WEIGHT:
 			uint64_t row = address / (UNIT_INT_BYTE * weightsize.tuple[1]);
 			uint64_t col = (address - row * weightsize.tuple[1] * UNIT_INT_BYTE) / UNIT_INT_BYTE;
-			Tuple insert = {{row, col}};
+			WB_Data insert = {row, col, 1};
 			weightbuffer.active.push_back(insert);
 			if(weightbuffer.remain_space >= MAX_READ_BYTE) // 꽉 차기 전까지만
 				weightbuffer.remain_space -= MAX_READ_BYTE;
@@ -460,19 +461,19 @@ bool BufferInterface::AuxAColEnd()
 
   canRequest() : request를 보낼 수 있는 상태인지 확인
   IsExist() : weight data를 request하기 전에 해당 data가 버퍼내부에 있는지 확인
-  MACEnd() : active에 속한 data들이 계산을 마치고 expire로 이동하게 하는 함수
   expire() : active내의 데이터 중 특정 address 의 data만 expire시키고 싶을 때 쓸 수 있는 함수
 
 */
 bool BufferInterface::canRequest()
 {
-	if(weightbuffer.remain_space >= MAX_READ_BYTE) // 버퍼가 아직 다 안채워진 경우 -> 가능
+	if(weightbuffersize - present_w_req >= MAX_READ_BYTE) // 버퍼가 아직 다 안채워진 경우 -> 가능
 	{
 		return true;
 	}
 	else if(!weightbuffer.expire.empty()) // 버퍼 내에 삭제 가능한 데이터가 있는 경우 -> 가능
 	{
 		weightbuffer.expire.erase(weightbuffer.expire.begin());
+		present_w_req -= MAX_READ_BYTE;
 		return true;
 	}
 	else // 모든 데이터가 사용중이므로 request 불가?
@@ -488,18 +489,19 @@ bool BufferInterface::isExist(uint64_t address) // for weight address
 	uint64_t row = address / (UNIT_INT_BYTE * weightsize.tuple[1]);
 	uint64_t col = (address - row * weightsize.tuple[1] * UNIT_INT_BYTE) / UNIT_INT_BYTE;
 
-	for(Tuple t : weightbuffer.active) // 이 for문은 생략 가능할 수 있음 (나중에 확인 / 생각 좀 해봄)
+	vector<WB_Data>::iterator iter;
+	for(iter = weightbuffer.active.begin(); iter != weightbuffer.active.end(); iter++)
 	{
-		if (t.tuple[0] == row && t.tuple[1] == col) // hit
+		if (iter->row == row && iter->col == col) // hit
 		{
+			iter->req += 1;
 			return true;
 		}
 	}
-	vector<Tuple>::iterator iter;
 	for(iter = weightbuffer.expire.begin(); iter != weightbuffer.expire.end(); iter++) {
-		if (iter->tuple[0] == row && iter->tuple[1] == col) // hit
+		if (iter->row == row && iter->col == col) // hit
 		{
-			Tuple t = {{iter->tuple[0], iter->tuple[1]}};
+			WB_Data t = {iter->row, iter->col, 1};
 			weightbuffer.active.push_back(t);
 			weightbuffer.expire.erase(iter);
 			return true;
@@ -510,26 +512,26 @@ bool BufferInterface::isExist(uint64_t address) // for weight address
 	return false;
 }
 
-void BufferInterface::MACEnd() // 계산 끝나면 실행시켜 줘야됨
-{
-	for(Tuple t : weightbuffer.active)
-		weightbuffer.expire.push_back(t);
-	weightbuffer.active.clear();
-}
-
 bool BufferInterface::Expire(uint64_t address) // 특정 address만 expire하기 위한 용도
 {
 
 	uint64_t row = address / (UNIT_INT_BYTE * weightsize.tuple[1]);
 	uint64_t col = (address - row * weightsize.tuple[1] * UNIT_INT_BYTE) / UNIT_INT_BYTE;
 
-	vector<Tuple>::iterator iter;
+	vector<WB_Data>::iterator iter;
 	for(iter = weightbuffer.active.begin(); iter != weightbuffer.active.end(); iter++) {
-		if (iter->tuple[0] == row && iter->tuple[1] == col)
+		if (iter->row == row && iter->col == col)
 		{
-			Tuple t = {{iter->tuple[0], iter->tuple[1]}};
-			weightbuffer.expire.push_back(t);
-			weightbuffer.active.erase(iter);
+			if(iter->req <= 1) // expire 됨
+			{
+				WB_Data t = {iter->row, iter->col, 0};
+				weightbuffer.expire.push_back(t);
+				weightbuffer.active.erase(iter);
+			}
+			else // 아직 남은 request 존재
+			{
+				iter->req -= 1;
+			}
 			return true;
 		}
 	}
@@ -593,11 +595,11 @@ void BufferInterface::print_status()
 	}
 
 	cout << "buffer_WEIGHT : {";
-	for(Tuple t: weightbuffer.active) {
-		cout << "(" << t.tuple[0] << "," << t.tuple[1] << "), ";
+	for(WB_Data t: weightbuffer.active) {
+		cout << "(" << t.row << "," << t.col << "), ";
 	}
-	for(Tuple t: weightbuffer.expire) {
-		cout << "(" << t.tuple[0] << "," << t.tuple[1] << "), ";
+	for(WB_Data t: weightbuffer.expire) {
+		cout << "(" << t.row << "," << t.col << "), ";
 	}
 	cout << "}" << endl;
 
