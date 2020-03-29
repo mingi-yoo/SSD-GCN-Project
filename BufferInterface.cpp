@@ -103,7 +103,7 @@ void BufferInterface::FillBuffer(uint64_t address, Type iswhat)
 		case WEIGHT:
 			uint64_t row = address / (UNIT_INT_BYTE * weightsize.tuple[1]);
 			uint64_t col = (address - row * weightsize.tuple[1] * UNIT_INT_BYTE) / UNIT_INT_BYTE;
-			Tuple insert = {{row, col}};
+			WB_Data insert = {row, col, 1};
 			weightbuffer.active.push_back(insert);
 			if(weightbuffer.remain_space >= MAX_READ_BYTE) // 꽉 차기 전까지만
 				weightbuffer.remain_space -= MAX_READ_BYTE;
@@ -194,12 +194,12 @@ void BufferInterface::Reset()
 
 uint64_t BufferInterface::PopData(Type iswhat)
 {
+	// 특이사항 : A_ROW, X_ROW일 때는 값의 차 반환 (각 row에 해당하는 colum index의 개수)
 	uint64_t ret;
 
 	switch (iswhat)
 	{
 		case A_COL:
-			cout<<"A_COL Popped"<<endl;
 			aux_axbuffer.colindex = present.colindex;
 			ret = data->adjcolindex[present.colindex];
 			axbuffer.remain_space += UNIT_INT_BYTE;
@@ -210,7 +210,6 @@ uint64_t BufferInterface::PopData(Type iswhat)
 				flag.a_col = false;
 			break;
 		case A_ROW:
-			cout<<"A_ROW Popped"<<endl;
 			if (present.rowindex == 0)
 				present.rowindex++;
 			aux_axbuffer.rowindex = present.rowindex;
@@ -223,7 +222,6 @@ uint64_t BufferInterface::PopData(Type iswhat)
 				flag.a_row = false;
 			break;
 		case X_COL:
-			cout<<"X_COL Popped"<<endl;
 			aux_axbuffer.colindex = present.colindex;
 			ret = data->ifcolindex[present.colindex];
 			axbuffer.remain_space += UNIT_INT_BYTE;
@@ -234,7 +232,6 @@ uint64_t BufferInterface::PopData(Type iswhat)
 				flag.x_col = false;
 			break;
 		case X_ROW:
-			cout<<"X_ROW Popped"<<endl;
 			if (present.rowindex == 0)
 				present.rowindex++;
 			aux_axbuffer.rowindex = present.rowindex;
@@ -272,7 +269,6 @@ uint64_t BufferInterface::ReadMACData(Type iswhat)
 	switch (iswhat) 
 	{
 		case A_COL:
-			cout<<"Aux A_COL Popped"<<endl;
 			ret = data->adjcolindex[aux_present.colindex];
 			aux_present.colindex++;
 			aux_axbuffer.remain_space += UNIT_INT_BYTE;
@@ -280,18 +276,15 @@ uint64_t BufferInterface::ReadMACData(Type iswhat)
 				aux_flag.a_col = false;
 			break;
 		case A_ROW:
-			cout<<"Aux A_ROW Popped"<<endl;
 			if (aux_present.rowindex == 0)
 				aux_present.rowindex++;
 			ret = data->adjrowindex[aux_present.rowindex] - data->adjrowindex[aux_present.rowindex-1];
 			aux_present.rowindex++;
-			shed_row = aux_present.rowindex;
 			aux_axbuffer.remain_space += UNIT_INT_BYTE;
 			if (aux_present.rowindex > aux_axbuffer.rowindex)
 				aux_flag.a_row = false;
 			break;			
 		case X_COL:
-			cout<<"Aux X_COL Popped"<<endl;
 			ret = data->ifcolindex[aux_present.colindex];
 			aux_present.colindex++;
 			aux_axbuffer.remain_space += UNIT_INT_BYTE;
@@ -299,12 +292,10 @@ uint64_t BufferInterface::ReadMACData(Type iswhat)
 				aux_flag.x_col = false;
 			break;
 		case X_ROW:
-			cout<<"Aux X_Row Popped"<<endl;
 			if (aux_present.rowindex == 0)
 				aux_present.rowindex++;
 			ret = data->ifrowindex[aux_present.rowindex] - data->ifrowindex[aux_present.rowindex-1];
 			aux_present.rowindex++;
-			shed_row = aux_present.rowindex;
 			aux_axbuffer.remain_space += UNIT_INT_BYTE;
 			if (aux_present.rowindex > aux_axbuffer.rowindex)
 				aux_flag.x_row = false;
@@ -312,15 +303,6 @@ uint64_t BufferInterface::ReadMACData(Type iswhat)
 	}
 
 	return ret;
-}
-
-uint64_t BufferInterface::ShedRow(bool isA) // Give hint to MACController
-{
-	uint64_t ret;
-	if (!isA)
-		ret = data->ifrowindex[shed_row] - data->ifrowindex[shed_row-1];
-	else
-		ret = data->adjrowindex[shed_row] - data->adjrowindex[shed_row-1];
 }
 
 float BufferInterface::ReadValMACData()
@@ -345,7 +327,6 @@ void BufferInterface::ClearMACData(bool rowtoo)
 
 bool BufferInterface::XEnd()
 {
-	// TODO
 	if (!isA && 
 		present.rowindex >= data->ifrowindex.size() && 
 		present.colindex >= data->ifcolindex.size() &&
@@ -358,12 +339,11 @@ bool BufferInterface::XEnd()
 		return true;
 	}
 	else
-		return false; // Dummy
+		return false;
 }
 
 bool BufferInterface::AEnd()
 {
-	// TODO
 	if (isA && 
 		present.rowindex >= data->adjrowindex.size() && 
 		present.colindex >= data->adjcolindex.size() &&
@@ -371,7 +351,7 @@ bool BufferInterface::AEnd()
 		aux_present.colindex >= data->adjcolindex.size())
 		return true;
 	else
-		return false; // Dummy
+		return false;
 }
 
 bool BufferInterface::XRowEnd()
@@ -488,18 +468,19 @@ bool BufferInterface::isExist(uint64_t address) // for weight address
 	uint64_t row = address / (UNIT_INT_BYTE * weightsize.tuple[1]);
 	uint64_t col = (address - row * weightsize.tuple[1] * UNIT_INT_BYTE) / UNIT_INT_BYTE;
 
-	for(Tuple t : weightbuffer.active) // 이 for문은 생략 가능할 수 있음 (나중에 확인 / 생각 좀 해봄)
+	for(WB_Data t : weightbuffer.active) // 이 for문은 생략 가능할 수 있음 (나중에 확인 / 생각 좀 해봄)
 	{
-		if (t.tuple[0] == row && t.tuple[1] == col) // hit
+		if (t.row == row && t.col == col) // hit
 		{
+			t.req++;
 			return true;
 		}
 	}
-	vector<Tuple>::iterator iter;
+	vector<WB_Data>::iterator iter;
 	for(iter = weightbuffer.expire.begin(); iter != weightbuffer.expire.end(); iter++) {
-		if (iter->tuple[0] == row && iter->tuple[1] == col) // hit
+		if (iter->row == row && iter->row == col) // hit
 		{
-			Tuple t = {{iter->tuple[0], iter->tuple[1]}};
+			WB_Data t = {iter->row, iter->col, 1};
 			weightbuffer.active.push_back(t);
 			weightbuffer.expire.erase(iter);
 			return true;
@@ -512,9 +493,19 @@ bool BufferInterface::isExist(uint64_t address) // for weight address
 
 void BufferInterface::MACEnd() // 계산 끝나면 실행시켜 줘야됨
 {
-	for(Tuple t : weightbuffer.active)
-		weightbuffer.expire.push_back(t);
-	weightbuffer.active.clear();
+	vector<WB_Data>::iterator iter;
+	for(iter = weightbuffer.active.begin(); iter != weightbuffer.active.end(); iter++) {
+		if(iter->req <= 1)
+		{
+			WB_Data t = {iter->row, iter->col, 0};
+			weightbuffer.expire.push_back(t);
+			weightbuffer.active.erase(iter);
+		}
+		else
+		{
+			iter->req -= 1;
+		}
+	}
 }
 
 bool BufferInterface::Expire(uint64_t address) // 특정 address만 expire하기 위한 용도
@@ -523,13 +514,20 @@ bool BufferInterface::Expire(uint64_t address) // 특정 address만 expire하기
 	uint64_t row = address / (UNIT_INT_BYTE * weightsize.tuple[1]);
 	uint64_t col = (address - row * weightsize.tuple[1] * UNIT_INT_BYTE) / UNIT_INT_BYTE;
 
-	vector<Tuple>::iterator iter;
+	vector<WB_Data>::iterator iter;
 	for(iter = weightbuffer.active.begin(); iter != weightbuffer.active.end(); iter++) {
-		if (iter->tuple[0] == row && iter->tuple[1] == col)
+		if (iter->row == row && iter->row == col)
 		{
-			Tuple t = {{iter->tuple[0], iter->tuple[1]}};
-			weightbuffer.expire.push_back(t);
-			weightbuffer.active.erase(iter);
+			if(iter->req <= 1)
+			{
+				WB_Data t = {iter->row, iter->col, 0};
+				weightbuffer.expire.push_back(t);
+				weightbuffer.active.erase(iter);
+			}
+			else
+			{
+				iter->req -= 1;
+			}
 			return true;
 		}
 	}
@@ -593,11 +591,11 @@ void BufferInterface::print_status()
 	}
 
 	cout << "buffer_WEIGHT : {";
-	for(Tuple t: weightbuffer.active) {
-		cout << "(" << t.tuple[0] << "," << t.tuple[1] << "), ";
+	for(WB_Data t: weightbuffer.active) {
+		cout << "(" << t.row << "," << t.col << "), ";
 	}
-	for(Tuple t: weightbuffer.expire) {
-		cout << "(" << t.tuple[0] << "," << t.tuple[1] << "), ";
+	for(WB_Data t: weightbuffer.expire) {
+		cout << "(" << t.row << "," << t.col << "), ";
 	}
 	cout << "}" << endl;
 
