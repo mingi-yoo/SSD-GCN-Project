@@ -40,12 +40,14 @@ public:
 	bool isready; //Weight가 버퍼에 들어온 경우
 	uint64_t present_ax_req; //현재 accelerator가 리퀘스트 한 정도
 	uint64_t present_w_req;
+	uint64_t shed_row;
 	BufferInterface(uint64_t axbuffersize, 
 					uint64_t weightbuffersize, 
 					uint64_t outputbuffersize,
 					DataReader *data_);
 	~BufferInterface();
 	void FillBuffer(uint64_t address, Type iswhat);
+	uint64_t ShedRow(bool isA);
 	bool IsFilled(Type iswhat);
 	bool AuxIsFilled(Type iswhat);
 	bool XEnd(); //MAC2로 넘어갈 준비가 되었는가

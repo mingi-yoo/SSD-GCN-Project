@@ -199,6 +199,7 @@ uint64_t BufferInterface::PopData(Type iswhat)
 	switch (iswhat)
 	{
 		case A_COL:
+			cout<<"A_COL Popped"<<endl;
 			aux_axbuffer.colindex = present.colindex;
 			ret = data->adjcolindex[present.colindex];
 			axbuffer.remain_space += UNIT_INT_BYTE;
@@ -209,6 +210,7 @@ uint64_t BufferInterface::PopData(Type iswhat)
 				flag.a_col = false;
 			break;
 		case A_ROW:
+			cout<<"A_ROW Popped"<<endl;
 			if (present.rowindex == 0)
 				present.rowindex++;
 			aux_axbuffer.rowindex = present.rowindex;
@@ -221,6 +223,7 @@ uint64_t BufferInterface::PopData(Type iswhat)
 				flag.a_row = false;
 			break;
 		case X_COL:
+			cout<<"X_COL Popped"<<endl;
 			aux_axbuffer.colindex = present.colindex;
 			ret = data->ifcolindex[present.colindex];
 			axbuffer.remain_space += UNIT_INT_BYTE;
@@ -231,6 +234,7 @@ uint64_t BufferInterface::PopData(Type iswhat)
 				flag.x_col = false;
 			break;
 		case X_ROW:
+			cout<<"X_ROW Popped"<<endl;
 			if (present.rowindex == 0)
 				present.rowindex++;
 			aux_axbuffer.rowindex = present.rowindex;
@@ -268,6 +272,7 @@ uint64_t BufferInterface::ReadMACData(Type iswhat)
 	switch (iswhat) 
 	{
 		case A_COL:
+			cout<<"Aux A_COL Popped"<<endl;
 			ret = data->adjcolindex[aux_present.colindex];
 			aux_present.colindex++;
 			aux_axbuffer.remain_space += UNIT_INT_BYTE;
@@ -275,15 +280,18 @@ uint64_t BufferInterface::ReadMACData(Type iswhat)
 				aux_flag.a_col = false;
 			break;
 		case A_ROW:
+			cout<<"Aux A_ROW Popped"<<endl;
 			if (aux_present.rowindex == 0)
 				aux_present.rowindex++;
 			ret = data->adjrowindex[aux_present.rowindex] - data->adjrowindex[aux_present.rowindex-1];
 			aux_present.rowindex++;
+			shed_row = aux_present.rowindex;
 			aux_axbuffer.remain_space += UNIT_INT_BYTE;
 			if (aux_present.rowindex > aux_axbuffer.rowindex)
 				aux_flag.a_row = false;
 			break;			
 		case X_COL:
+			cout<<"Aux X_COL Popped"<<endl;
 			ret = data->ifcolindex[aux_present.colindex];
 			aux_present.colindex++;
 			aux_axbuffer.remain_space += UNIT_INT_BYTE;
@@ -291,10 +299,12 @@ uint64_t BufferInterface::ReadMACData(Type iswhat)
 				aux_flag.x_col = false;
 			break;
 		case X_ROW:
+			cout<<"Aux X_Row Popped"<<endl;
 			if (aux_present.rowindex == 0)
 				aux_present.rowindex++;
 			ret = data->ifrowindex[aux_present.rowindex] - data->ifrowindex[aux_present.rowindex-1];
 			aux_present.rowindex++;
+			shed_row = aux_present.rowindex;
 			aux_axbuffer.remain_space += UNIT_INT_BYTE;
 			if (aux_present.rowindex > aux_axbuffer.rowindex)
 				aux_flag.x_row = false;
@@ -302,6 +312,15 @@ uint64_t BufferInterface::ReadMACData(Type iswhat)
 	}
 
 	return ret;
+}
+
+uint64_t BufferInterface::ShedRow(bool isA) // Give hint to MACController
+{
+	uint64_t ret;
+	if (!isA)
+		ret = data->ifrowindex[shed_row] - data->ifrowindex[shed_row-1];
+	else
+		ret = data->adjrowindex[shed_row] - data->adjrowindex[shed_row-1];
 }
 
 float BufferInterface::ReadValMACData()

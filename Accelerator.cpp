@@ -39,6 +39,7 @@ Accelerator::Accelerator(uint64_t accdimension, DRAMInterface *dram_, BufferInte
 	cheat.colindex = 0;
 	cheat.rowindex = 0;
 	flag = {false, false, false, false, true, false, false, false, true, false, true, true, true};
+	endflag = {false, false, false, false, false};
 }
 
 Accelerator::~Accelerator() {}
@@ -113,7 +114,7 @@ void Accelerator::RequestControllerRun()
 	{
 		Request(A_ROW);
 		buffer->present_ax_req += MAX_READ_BYTE;
-		if (!buffer->AColEnd())
+		if (!endflag.a_col_end)
 		{
 			flag.a_row_req = false;
 			flag.a_col_req = true;
@@ -141,7 +142,7 @@ void Accelerator::RequestControllerRun()
 	{
 		Request(X_ROW);
 		buffer->present_ax_req += MAX_READ_BYTE;
-		if (!buffer->XColEnd() && !buffer->XValEnd())
+		if (!endflag.x_col_end && !endflag.x_val_end)
 		{
 			flag.x_row_req = false;
 			flag.x_col_req = true;
@@ -182,25 +183,24 @@ void Accelerator::RequestControllerRun()
 			if (!buffer->isExist(address))
 			{
 				dram->DRAMRequest(address, false);
-				cout<<"Weight Request... Address: "<<address<<endl;
+				cout<<"Weight Request... Address: "<<hex<<address<<endl;
 			}
 			if (remain_col_num == 0)
 			{
 				if (buffer->IsFilled(X_ROW))
 				{
+					remain_col_num = buffer->PopData(X_ROW);
 					if (remain_col_num == 0 && buffer->IsFilled(X_ROW))
 					{
-						remain_col_num = buffer->PopData(X_ROW);
-						if (remain_col_num == 0 && buffer->IsFilled(X_ROW))
-							flag.weight_req = true;
-						else if (remain_col_num == 0 && !buffer->IsFilled(X_ROW) && !buffer->XRowEnd())
-						{
-							flag.x_row_req = true;
-							flag.weight_req = false;
-						}
+						flag.weight_req = false;	
+					}
+					else if (remain_col_num == 0 && !buffer->IsFilled(X_ROW) && !endflag.x_row_end)
+					{
+						flag.x_row_req = true;
+						flag.weight_req = false;
 					}
 				}
-				else if (!buffer->XRowEnd())
+				else if (!endflag.x_row_end)
 				{
 					flag.x_row_req = true;
 					flag.weight_req = false;
@@ -210,16 +210,16 @@ void Accelerator::RequestControllerRun()
 					flag.weight_req = false;
 				}
 			}
-			if (!buffer->IsFilled(X_COL) && !buffer->IsFilled(X_VAL) && !buffer->XColEnd() && !buffer->XValEnd())
+			else if (!buffer->IsFilled(X_COL) && !buffer->IsFilled(X_VAL) && !endflag.x_col_end && !endflag.x_val_end)
 			{
 				flag.x_col_req = true;
 				flag.x_val_req = true;
 				flag.weight_req = false;
 			}
-			else if (buffer->XColEnd() && buffer->XValEnd())
+			else if (endflag.x_col_end && endflag.x_val_end && remain_col_num == 0)
 			{
 				flag.weight_req = false;
-				while (!buffer->XRowEnd())
+				if (!buffer->XRowEnd())
 					buffer->PopData(X_ROW);
 			}
 		}
@@ -231,25 +231,22 @@ void Accelerator::RequestControllerRun()
 			if (!buffer->isExist(address))
 			{
 				dram->DRAMRequest(address, false);
-				cout<<"Weight Request... Address: "<<address<<endl;
+				cout<<"Weight Request... Address: "<<hex<<address<<endl;
 			}
 			if (remain_col_num == 0)
 			{
 				if (buffer->IsFilled(A_ROW))
 				{
+					remain_col_num = buffer->PopData(A_ROW);
 					if (remain_col_num == 0 && buffer->IsFilled(A_ROW))
+						flag.weight_req = false;
+					else if (remain_col_num == 0 && !buffer->IsFilled(A_ROW) && !endflag.a_row_end)
 					{
-						remain_col_num = buffer->PopData(A_ROW);
-						if (remain_col_num == 0 && buffer->IsFilled(A_ROW))
-							flag.weight_req = false;
-						else if (remain_col_num == 0 && !buffer->IsFilled(A_ROW) && !buffer->ARowEnd())
-						{
-							flag.a_row_req = true;
-							flag.weight_req = false;
-						}
+						flag.a_row_req = true;
+						flag.weight_req = false;
 					}
 				}
-				else if (!buffer->ARowEnd())
+				else if (!endflag.a_row_end)
 				{
 					flag.a_row_req = true;
 					flag.weight_req = false;
@@ -259,15 +256,15 @@ void Accelerator::RequestControllerRun()
 					flag.weight_req = false;
 				}
 			}
-			if (!buffer->IsFilled(A_COL) && !buffer->AColEnd())
+			else if (!buffer->IsFilled(A_COL) && !endflag.a_col_end)
 			{
 				flag.a_col_req = true;
 				flag.weight_req = false;
 			}
-			else if (buffer->AColEnd())
+			else if (endflag.a_col_end && remain_col_num == 0) 
 			{
 				flag.weight_req = false;
-				while (!buffer->ARowEnd())
+				if (!buffer->ARowEnd())
 					buffer->PopData(A_ROW);
 			}
 		}
@@ -282,6 +279,7 @@ void Accelerator::RequestControllerRun()
 				if (remain_col_num == 0)
 				{
 					remain_col_num = buffer->PopData(X_ROW);
+					cout<<"..........."<<endl;
 					if (remain_col_num != 0)
 					{
 						flag.weight_req = true;
@@ -289,6 +287,13 @@ void Accelerator::RequestControllerRun()
 						flag.x_val_req = false;
 					}
 				}
+				else
+				{
+					flag.weight_req = true;
+					flag.x_col_req = false;
+					flag.x_val_req = false;
+				}
+					
 			}
 		}
 		else
@@ -304,6 +309,11 @@ void Accelerator::RequestControllerRun()
 						flag.a_col_req = false;
 					}
 				}
+				else
+				{
+					flag.weight_req = true;
+					flag.a_col_req = false;
+				}
 			}
 		}
 	}
@@ -316,7 +326,7 @@ void Accelerator::MACControllerRun()
 	if (buffer->isready)
 	{
 		if (flag.mac_1)
-		{
+		{;
 			if (present_v_fold == 0 && remain_mac_col == 0 && buffer->AuxIsFilled(X_ROW))
 			{
 				remain_mac_col = buffer->ReadMACData(X_ROW);
@@ -327,16 +337,19 @@ void Accelerator::MACControllerRun()
 					present_mac_val = 0;
 					present_mac_col = 0;
 					address = OUTPUT_START + (present_mac_row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
-					cout<<":MAC1 Running... Row: "<<present_mac_row<<"is zero row...";
+					cout<<"MAC1 Running... Row: "<<dec<<present_mac_row<<" is zero row..."<<endl;
 					dram->DRAMRequest(address, true);
+					cout<<"Output Request... Address: "<<hex<<address<<endl;
+					if (buffer->AuxXRowEnd() || buffer->ShedRow(false) != 0)
+						buffer->isready = false;
 					return;
 				}
-				else
-				{
-					v_fold_over = false;
-					present_mac_val = buffer->ReadValMACData();
-					present_mac_col = buffer->ReadMACData(X_COL);
-				}
+			}
+			if (present_v_fold == 0)
+			{
+				v_fold_over = false;
+				present_mac_val = buffer->ReadValMACData();
+				present_mac_col = buffer->ReadMACData(X_COL);
 			}
 			cout<<"MAC1 Running... v_fold: "<< present_v_fold<<
 			" w_fold: "<<present_w_fold<<
@@ -355,16 +368,14 @@ void Accelerator::MACControllerRun()
 				buffer->isready = false;
 				if (remain_mac_col == 0)
 				{
-					cout<<"Row "<<present_mac_row<<" is Complete."<<endl;
+					cout<<"Row "<<dec<<present_mac_row<<" is Complete."<<endl;
 					address = OUTPUT_START + (present_mac_row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 					dram->DRAMRequest(address, true);
-					/*
+					cout<<"Output Request... Address: "<<hex<<address<<endl;
 					if (buffer->AuxXValEnd() && buffer->AuxXColEnd() && !buffer->AuxXRowEnd())
 					{
-						while (!buffer->AuxXRowEnd())
-							buffer->ReadMACData(X_ROW);
-					}
-					*/				
+						buffer->isready = true;
+					}				
 				}
 			}
 		}
@@ -381,6 +392,9 @@ void Accelerator::MACControllerRun()
 					present_mac_col = 0;
 					address = OUTPUT_START + (present_mac_row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 					dram->DRAMRequest(address, true);
+					cout<<"MAC2 is running ... row "<<dec<<present_mac_col<<" is zero"<<endl;
+					if (buffer->AuxARowEnd() || buffer->ShedRow(true) != 0)
+						buffer->isready = false;
 					return;
 				}
 				else
@@ -388,6 +402,11 @@ void Accelerator::MACControllerRun()
 					v_fold_over = false;
 					present_mac_col = buffer->ReadMACData(A_COL);
 				}
+			}
+			if (present_v_fold == 0)
+			{
+				v_fold_over = false;
+				present_mac_col = buffer->ReadMACData(A_COL);
 			}
 			cout<<"MAC2 Running... v_fold: "<< present_v_fold<<
 			" w_fold: "<<present_w_fold<<
@@ -405,16 +424,13 @@ void Accelerator::MACControllerRun()
 				buffer->isready = false;
 				if (remain_mac_col == 0)
 				{
-					cout<<"Row "<<present_mac_row<<" is Complete."<<endl;
+					cout<<"Row "<<dec<<present_mac_row<<" is Complete."<<endl;
 					address = OUTPUT_START + (present_mac_row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 					dram->DRAMRequest(address, true);	
-					/*
 					if (buffer->AuxAColEnd() && !buffer->AuxARowEnd())
 					{
-						while (!buffer->AuxARowEnd())
-							buffer->ReadMACData(A_ROW);
-					}
-					*/				
+						buffer->isready = true;
+					}	
 				}
 			}
 		}
@@ -432,45 +448,60 @@ void Accelerator::Request(Type iswhat)
 			a_col_addr += MAX_READ_BYTE;
 			cheat.colindex += MAX_READ_INT;
 			if (cheat.colindex >= buffer->data->adjcolindex.size())
+			{
 				flag.a_col_req = false;
+				endflag.a_col_end = true;
+			}
 			dram->DRAMRequest(address, false);
-			cout<<"Request A_COLUMN. Address: "<<address<<endl;
+			cout<<"Request A_COLUMN. Address: "<<hex<<address<<endl;
 			break;
 		case A_ROW:
 			address = a_row_addr;
 			a_row_addr += MAX_READ_BYTE;
 			cheat.rowindex += MAX_READ_INT;
 			if (cheat.rowindex >= buffer->data->adjrowindex.size())
+			{
 				flag.a_row_req = false;
+				endflag.a_row_end = true;
+			}
 			dram->DRAMRequest(address, false);
-			cout<<"Request A_ROW. Address: "<<address<<endl;
+			cout<<"Request A_ROW. Address: "<<hex<<address<<endl;
 			break;
 		case X_VAL:
 			address = x_val_addr;
 			x_val_addr += MAX_READ_BYTE;
 			cheat.valindex += MAX_READ_INT;
 			if (cheat.valindex >= buffer->data->ifvalue.size())
+			{
 				flag.x_val_req = false;
+				endflag.x_val_end = true;
+			}
 			dram->DRAMRequest(address, false);
-			cout<<"Request X_VALUE. Address: "<<address<<endl;
+			cout<<"Request X_VALUE. Address: "<<hex<<address<<endl;
 			break;
 		case X_COL:
 			address = x_col_addr;
 			x_col_addr += MAX_READ_BYTE;
 			cheat.colindex += MAX_READ_INT;
 			if (cheat.colindex >= buffer->data->ifcolindex.size())
+			{
 				flag.x_col_req = false;
+				endflag.x_col_end = true;
+			}
 			dram->DRAMRequest(address, false);
-			cout<<"Request X_COLUMN. Address: "<<address<<endl;
+			cout<<"Request X_COLUMN. Address: "<<hex<<address<<endl;
 			break;
 		case X_ROW:
 			address = x_row_addr;
 			x_row_addr += MAX_READ_BYTE;
 			cheat.rowindex += MAX_READ_INT;
 			if (cheat.rowindex >= buffer->data->ifrowindex.size())
+			{
 				flag.x_row_req = false;
+				endflag.x_row_end = true;
+			}
 			dram->DRAMRequest(address, false);
-			cout<<"Request X_ROW. Address: "<<address<<endl;
+			cout<<"Request X_ROW. Address: "<<hex<<address<<endl;
 			break;
 	}
 }

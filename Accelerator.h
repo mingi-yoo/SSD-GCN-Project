@@ -31,6 +31,15 @@ struct AccFlag
 	bool w_req_ok;
 };
 
+struct EndFlag
+{
+	bool a_col_end;
+	bool a_row_end;
+	bool x_val_end;
+	bool x_col_end;
+	bool x_row_end;
+};
+
 class Accelerator {
 public :
 	Accelerator(uint64_t accdimension, DRAMInterface *dram_, BufferInterface *buffer_);
@@ -64,6 +73,7 @@ private:
 	BufferInterface *buffer;
 	Type need;
 	AccFlag flag;
+	EndFlag endflag;
 	void RequestControllerRun();
 	void MACControllerRun();
 	void Request(Type iswhat);
