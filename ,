@@ -70,9 +70,6 @@ bool Accelerator::Run()
 		flag.x_val_req = false;
 		flag.x_col_req = false;
 		flag.weight_req = false;
-		endflag.x_row_end = false;
-		endflag.x_col_end = false;
-		endflag.x_val_end = false;
 		present_v_fold = 0;
 		if (present_w_fold > w_fold)
 		{
@@ -91,8 +88,6 @@ bool Accelerator::Run()
 		flag.a_row_req = true;
 		flag.a_col_req = false;
 		flag.weight_req = false;
-		endflag.a_row_end = false;
-		endflag.a_col_end = false;
 		present_v_fold = 0;
 		if (present_w_fold > w_fold)
 		{
@@ -300,10 +295,6 @@ void Accelerator::RequestControllerRun()
 				}
 					
 			}
-			else if (!buffer->XRowEnd() && buffer->XColEnd() && buffer->XValEnd())
-			{
-				remain_col_num = buffer->PopData(X_ROW);
-			}
 		}
 		else
 		{
@@ -323,10 +314,6 @@ void Accelerator::RequestControllerRun()
 					flag.weight_req = true;
 					flag.a_col_req = false;
 				}
-			}
-			else if (!buffer->ARowEnd() && buffer->AColEnd())
-			{
-				remain_col_num = buffer->PopData(A_ROW);
 			}
 		}
 	}

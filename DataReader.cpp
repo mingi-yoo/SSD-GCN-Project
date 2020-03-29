@@ -18,8 +18,11 @@ vector<float> DataReader::GetFloatVal(string line, char delimiter)
 	string temp;
 
 	while (getline(ss, temp, delimiter)) {
+		if (temp == "\n")
+			break;
 		internal.push_back(stof(temp));
 	}
+	cout<<"OK"<<endl;
 
 	return internal;
 }
@@ -31,6 +34,8 @@ vector<uint64_t> DataReader::GetUint64Val(string line, char delimiter)
 	string temp;
 
 	while (getline(ss, temp, delimiter)) {
+		if (temp == "\n")
+			break;
 		internal.push_back(stoull(temp));
 	}
 

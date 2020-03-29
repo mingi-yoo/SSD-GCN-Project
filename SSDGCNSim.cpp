@@ -41,5 +41,5 @@ void SSDGCNSim::RunSimulator()
     cycle++;
     dram->UpdateCycle();
   }
-  cout<<"End... Total Cycle: "<<cycle<<endl;
+  cout<<"End... Total Cycle: "<<dec<<cycle<<endl;
 }

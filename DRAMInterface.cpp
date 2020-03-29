@@ -6,6 +6,8 @@
 
 using namespace std;
 
+extern uint64_t cycle;
+
 DRAMInterface::DRAMInterface(const string& configfile, 
 							 const string& systemfile, 
 							 const string& logfile, 
@@ -68,12 +70,12 @@ void DRAMInterface::ReadCompleteCallback(unsigned id, uint64_t address, uint64_t
 	else if (belong == A_ROW)
 		print = "A_ROW";
 
-	cout<<"Cycle: "<<clock_cycle<<". Data Read Complete. Type: "<<print<<" Address: "<<address<<endl;
+	cout<<"Cycle: "<<dec<<cycle<<". Data Read Complete. Type: "<<print<<" Address: "<<address<<endl;
 }
 
 void DRAMInterface::WriteCompleteCallback(unsigned id, uint64_t address, uint64_t clock_cycle) 
 {
-	cout<<"Cycle: "<<clock_cycle<<". Output Write Complete. Address: "<<address<<endl;
+	cout<<"Cycle: "<<dec<<cycle<<". Output Write Complete. Address: "<<address<<endl;
 }
 
 Type DRAMInterface::WhereisItBelong(uint64_t address) {
