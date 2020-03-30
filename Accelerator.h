@@ -77,6 +77,7 @@ private:
 	void RequestControllerRun();
 	void MACControllerRun();
 	void Request(Type iswhat);
+	void RequestWeight(uint64_t address);
 	void Reset();
 };
 

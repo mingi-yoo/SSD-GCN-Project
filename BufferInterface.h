@@ -70,7 +70,9 @@ public:
 	void ClearMACData(bool rowtoo);
 	//weight용
 	bool canRequest();
-	bool isExist(uint64_t address); //weight or xw계산한 값 존재?
+	void Request(uint64_t address);
+	bool Requested(uint64_t address); // RequestController 에서만 사용되어야 함
+	bool isExist(uint64_t address); //weight 값 존재? (Request controller에서만 사용되어야 함)
 	bool Expire(uint64_t address);
 	//테스트용
 	void print_status();

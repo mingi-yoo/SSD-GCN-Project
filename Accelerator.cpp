@@ -187,9 +187,10 @@ void Accelerator::RequestControllerRun()
 			address = WEIGHT_START + (present_col * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 			if (!buffer->isExist(address))
 			{
-				dram->DRAMRequest(address, false);
-				cout<<"Weight Request... Address: "<<hex<<address<<endl;
-				buffer->present_w_req += MAX_READ_BYTE;
+				if(!buffer->Requested(address))
+				{
+					RequestWeight(address);
+				}
 			}
 			if (!buffer->XColEnd() && !buffer->XValEnd() && remain_col_num == 0)
 			{
@@ -236,9 +237,10 @@ void Accelerator::RequestControllerRun()
 			address = OUTPUT_START + (present_col * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 			if (!buffer->isExist(address))
 			{
-				dram->DRAMRequest(address, false);
-				cout<<"Weight Request... Address: "<<hex<<address<<endl;
-				buffer->present_w_req += MAX_READ_BYTE;
+				if(!buffer->Requested(address))
+				{
+					RequestWeight(address);
+				}
 			}
 			if (!buffer->AColEnd() && remain_col_num == 0)
 			{
@@ -518,6 +520,13 @@ void Accelerator::Request(Type iswhat)
 			cout<<"Request X_ROW. Address: "<<hex<<address<<endl;
 			break;
 	}
+}
+
+void Accelerator::RequestWeight(uint64_t address)
+{
+	dram->DRAMRequest(address, false);
+	buffer->Request(address);
+	cout<<"Request WEIGHT. Address: "<<hex<<address<<endl;
 }
 
 void Accelerator::Reset()

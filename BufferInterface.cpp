@@ -102,21 +102,22 @@ void BufferInterface::FillBuffer(uint64_t address, Type iswhat)
 			flag.x_row = true;
 			break;
 		case WEIGHT:
-			if(!isExist(address))
+			vector<WB_Data>::iterator iter;
+			bool isWork = false; // 정상적으로 작동했는지 확인용
+
+			for(iter = weightbuffer.request.begin(); iter != weightbuffer.request.end(); iter++)
 			{
-				uint64_t row = address / (UNIT_INT_BYTE * weightsize.tuple[1]);
-				uint64_t col = (address - row * weightsize.tuple[1] * UNIT_INT_BYTE) / UNIT_INT_BYTE;
-				WB_Data insert = {row, col, 1};
-				weightbuffer.active.push_back(insert);
-				if(weightbuffer.remain_space >= MAX_READ_BYTE) // 꽉 차기 전까지만
-					weightbuffer.remain_space -= MAX_READ_BYTE;
+				if(iter->address == address)
+				{
+					WB_Data t = {address, iter->req};
+					weightbuffer.active.push_back(t);
+					weightbuffer.request.erase(iter);
+					flag.weight = true;
+					isWork = true;
+					break;
+				}
 			}
-			else
-			{
-				present_w_req -= MAX_READ_BYTE;
-			}
-			flag.weight = true;
-			
+			assert(isWork);
 			break;
 	}
 }
@@ -198,6 +199,7 @@ void BufferInterface::Reset()
 	weightbuffer.remain_space = weightbuffersize;
 	weightbuffer.active.clear();
 	weightbuffer.expire.clear();
+	weightbuffer.request.clear();
 	present_w_req = 0;
 
 	flag = {false, false, false, false, false, false, false};
@@ -473,11 +475,13 @@ bool BufferInterface::AuxAColEnd()
 		return false;
 }
 /* weight buffer 를 위한 함수들
-
-  canRequest() : request를 보낼 수 있는 상태인지 확인
-  IsExist() : weight data를 request하기 전에 해당 data가 버퍼내부에 있는지 확인
-  expire() : active내의 데이터 중 특정 address 의 data만 expire시키고 싶을 때 쓸 수 있는 함수
-
+*
+* canRequest() : request를 보낼 수 있는 상태인지 확인
+* Request() : request 보낸 데이터들 목록 관리
+* Requested() : 아직 버퍼에는 없지만 이미 request요청이 간 데이터인지 확인 (중복 request 방지)
+* IsExist() : weight data를 request하기 전에 해당 data가 버퍼내부에 있는지 확인
+* expire() : active내의 데이터 중 특정 address 의 data만 expire시키고 싶을 때 쓸 수 있는 함수
+*
 */
 bool BufferInterface::canRequest()
 {
@@ -497,29 +501,55 @@ bool BufferInterface::canRequest()
 	}
 }
 
-bool BufferInterface::isExist(uint64_t address) // for weight address
+void BufferInterface::Request(uint64_t address)
 {
-	// weight address인 경우만 취급 // 일단 두번째 mac에 대해서는 고려하지 않음
+	WB_Data t = {address, 1};
+	weightbuffer.request.push_back(t);
+	present_w_req += MAX_READ_BYTE;
+}
 
-	uint64_t row = address / (UNIT_INT_BYTE * weightsize.tuple[1]);
-	uint64_t col = (address - row * weightsize.tuple[1] * UNIT_INT_BYTE) / UNIT_INT_BYTE;
-
-	vector<WB_Data>::iterator iter;
-	for(iter = weightbuffer.active.begin(); iter != weightbuffer.active.end(); iter++)
+bool BufferInterface::Requested(uint64_t address)
+{
+	if(!weightbuffer.request.empty())
 	{
-		if (iter->row == row && iter->col == col) // hit
+		vector<WB_Data>::iterator iter;
+		for(iter = weightbuffer.request.begin(); iter != weightbuffer.request.end(); iter++)
 		{
-			iter->req += 1;
-			return true;
+			if(iter->address == address) // already requested
+			{
+				iter->req += 1;
+				return true;
+			}
 		}
 	}
-	for(iter = weightbuffer.expire.begin(); iter != weightbuffer.expire.end(); iter++) {
-		if (iter->row == row && iter->col == col) // hit
+	
+	return false;
+}
+
+bool BufferInterface::isExist(uint64_t address) // for weight address
+{
+	vector<WB_Data>::iterator iter;
+	if(!weightbuffer.active.empty())
+	{
+		for(iter = weightbuffer.active.begin(); iter != weightbuffer.active.end(); iter++)
 		{
-			WB_Data t = {iter->row, iter->col, 1};
-			weightbuffer.active.push_back(t);
-			weightbuffer.expire.erase(iter);
-			return true;
+			if (iter->address == address) // hit
+			{
+				iter->req += 1;
+				return true;
+			}
+		}
+	}
+	if(!weightbuffer.expire.empty())
+	{
+		for(iter = weightbuffer.expire.begin(); iter != weightbuffer.expire.end(); iter++) {
+			if (iter->address == address) // hit
+			{
+				WB_Data t = {address, 1};
+				weightbuffer.active.push_back(t);
+				weightbuffer.expire.erase(iter);
+				return true;
+			}
 		}
 	}
 
@@ -529,27 +559,27 @@ bool BufferInterface::isExist(uint64_t address) // for weight address
 
 bool BufferInterface::Expire(uint64_t address) // 특정 address만 expire하기 위한 용도
 {
-
-	uint64_t row = address / (UNIT_INT_BYTE * weightsize.tuple[1]);
-	uint64_t col = (address - row * weightsize.tuple[1] * UNIT_INT_BYTE) / UNIT_INT_BYTE;
-
-	vector<WB_Data>::iterator iter;
-	for(iter = weightbuffer.active.begin(); iter != weightbuffer.active.end(); iter++) {
-		if (iter->row == row && iter->col == col)
-		{
-			if(iter->req <= 1) // expire 됨
+	if(!weightbuffer.active.empty())
+	{
+		vector<WB_Data>::iterator iter;
+		for(iter = weightbuffer.active.begin(); iter != weightbuffer.active.end(); iter++) {
+			if (iter->address == address)
 			{
-				WB_Data t = {iter->row, iter->col, 0};
-				weightbuffer.expire.push_back(t);
-				weightbuffer.active.erase(iter);
+				if(iter->req <= 1) // expire 됨
+				{
+					WB_Data t = {address, 0};
+					weightbuffer.expire.push_back(t);
+					weightbuffer.active.erase(iter);
+				}
+				else // 아직 남은 request 존재
+				{
+					iter->req -= 1;
+				}
+				return true;
 			}
-			else // 아직 남은 request 존재
-			{
-				iter->req -= 1;
-			}
-			return true;
 		}
 	}
+
 	return false;
 }
 
@@ -611,10 +641,10 @@ void BufferInterface::print_status()
 
 	cout << "buffer_WEIGHT : {";
 	for(WB_Data t: weightbuffer.active) {
-		cout << "(" << t.row << "," << t.col << "), ";
+		cout << hex << t.address << dec << ", ";
 	}
 	for(WB_Data t: weightbuffer.expire) {
-		cout << "(" << t.row << "," << t.col << "), ";
+		cout << hex << t.address << dec << ", ";
 	}
 	cout << "}" << endl;
 

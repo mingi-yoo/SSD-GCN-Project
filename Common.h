@@ -31,8 +31,7 @@ enum Type {A_COL, A_ROW, X_VAL, X_COL, X_ROW, WEIGHT, OUTPUT};
 
 //for weight buffer
 struct WB_Data {
-	uint64_t row;
-	uint64_t col;
+	uint64_t address;
 	uint64_t req; // 몇 번 리퀘스트 받았는가?
 };
 
@@ -53,6 +52,7 @@ struct WeightBuffer {
 	uint64_t remain_space;
 	vector<WB_Data> active;
 	vector<WB_Data> expire;
+	vector<WB_Data> request;
 };
 
 struct OutputBuffer {
