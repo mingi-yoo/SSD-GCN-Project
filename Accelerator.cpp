@@ -473,7 +473,7 @@ void Accelerator::MACControllerRun()
 			cout<<"MAC2 Running... v_fold: "<<dec<<present_v_fold<<
 			", w_fold: "<<dec<<present_w_fold<<
 			", Row: "<<dec<<present.row<<
-			", Col: "<<dec<<present.col<<
+			", Col: "<<dec<<present.col<<endl;
 			present_v_fold++;
 			if ((present_v_fold > v_fold && present_w_fold < w_fold) 
 				|| (present_v_fold > v_fold_last && present_w_fold == w_fold))
