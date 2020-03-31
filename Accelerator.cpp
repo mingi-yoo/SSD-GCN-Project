@@ -410,12 +410,14 @@ void Accelerator::MACControllerRun()
 				present_v_fold = 0;
 				remain_mac_col--;
 				macflag.v_fold_over = true;
+				macflag.fold_start = true;
 				buffer->Expire(present.weight);
 				macflag.macisready = false;
 				if (remain_mac_col == 0)
 				{
 					macflag.first_get = true;
 					macflag.macisready = false;
+					macflag.fold_start = false;
 					cout<<"Row "<<dec<<present.row<<" is Complete."<<endl;
 					address = OUTPUT_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 					dram->DRAMRequest(address, true);
@@ -479,12 +481,14 @@ void Accelerator::MACControllerRun()
 				present_v_fold = 0;
 				remain_mac_col--;
 				macflag.v_fold_over = true;
+				macflag.fold_start = true;
 				buffer->Expire(present.weight);
 				macflag.macisready = false;
 				if (remain_mac_col == 0)
 				{
 					macflag.first_get = true;
 					macflag.macisready = false;
+					macflag.fold_start = false;
 					cout<<"Row "<<dec<<present.row<<" is Complete."<<endl;
 					address = OUTPUT_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 					dram->DRAMRequest(address, true);
