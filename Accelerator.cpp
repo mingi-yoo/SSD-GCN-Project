@@ -82,6 +82,7 @@ bool Accelerator::Run()
 			flag.a_row_req = true;
 			flag.mac_1 = false;
 			flag.mac_2 = true;
+			buffer->isA = true;
 			cout<<"MAC1 End...."<<endl;
 		}
 	}

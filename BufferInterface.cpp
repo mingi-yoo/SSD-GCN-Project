@@ -387,7 +387,6 @@ bool BufferInterface::XEnd()
 		aux_present.colindex >= data->ifcolindex.size() &&
 		aux_present.valindex >= data->ifvalue.size())
 	{
-		isA = true;
 		return true;
 	}
 	else

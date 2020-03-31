@@ -39,6 +39,7 @@ public:
 	uint64_t weightbuffersize;
 	uint64_t present_ax_req; //현재 accelerator가 리퀘스트 한 정도
 	uint64_t present_w_req;
+	bool isA;
 	BufferInterface(uint64_t axbuffersize, 
 					uint64_t weightbuffersize, 
 					uint64_t outputbuffersize,
@@ -94,7 +95,6 @@ private:
 	BufIndex aux_present; //두 번째 버퍼의 위치를 가리키는 인덱스
 	BufIndex log;
 	bool mac_start;
-	bool isA;
 	vector<uint64_t> adjcolindex;
 	vector<uint64_t> adjrowindex;
 	vector<float> ifvalue;
