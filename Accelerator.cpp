@@ -366,9 +366,9 @@ void Accelerator::MACControllerRun()
 	
 	if (flag.mac1)
 	{
-		if (!macflag.macisready)
+		if (!macflag.macisready) //맨 처음 상태 
 		{
-			if (buffer->AuxIsFilled(X_ROW) && macflag.first_get)
+			if (buffer->AuxIsFilled(X_ROW) && macflag.first_get) //present라는 변수안에 처리해야할 데이터 집어넣음
 			{
 				remain_mac_col = buffer->ReadMACData(X_ROW);
 				present_mac_row++;
@@ -376,26 +376,26 @@ void Accelerator::MACControllerRun()
 				macflag.first_get = false;
 				macflag.fold_start = true;
 			}
-			if (remain_mac_col != 0 && buffer->AuxIsFilled(X_COL) && buffer->AuxIsFilled(X_VAL) && macflag.fold_start)
+			if (remain_mac_col != 0 && buffer->AuxIsFilled(X_COL) && buffer->AuxIsFilled(X_VAL) && macflag.fold_start) //만일 zero row가 아니면
 			{
 				present.col = buffer->ReadMACData(X_COL);
 				present.val = buffer->ReadValMACData();
 				macflag.fold_start = false;
 				present.weight =  WEIGHT_START + (present.col * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
-				if (buffer->isReady(present.weight))
+				if (buffer->isReady(present.weight)) //준비가 되었는가?
 					macflag.macisready = true;
 			}
-			else if (remain_mac_col == 0 && macflag.fold_start)
+			else if (remain_mac_col == 0 && macflag.fold_start) //만일 zero row이면 maciszero 켜기
 			{
 				macflag.maciszero = true;
 			}
-			else if (!macflag.first_get && !macflag.fold_start)
+			else if (!macflag.first_get && !macflag.fold_start) //준비 되었는가?
 			{
 				if (buffer->isReady(present.weight))
 					macflag.macisready = true;
 			}
 		}
-		if (macflag.macisready)
+		if (macflag.macisready) // 준비됐으면 계산
 		{
 			cout<<"MAC1 Running... v_fold: "<<dec<<present_v_fold<<
 			", w_fold: "<<dec<<present_w_fold<<
@@ -421,7 +421,7 @@ void Accelerator::MACControllerRun()
 				}
 			}
 		}
-		else if (macflag.maciszero)
+		else if (macflag.maciszero) // zero인 경우 계산 
 		{
 			macflag.v_fold_over = true;
 			macflag.maciszero = false;
@@ -584,5 +584,5 @@ void Accelerator::Reset()
 	cheat.rowindex = 0;
 	cheat.colindex = 0;
 	cheat.valindex = 0;
-	macflag = {true, false, false, false};
+	macflag = {true, false, false, false, false};
 }
