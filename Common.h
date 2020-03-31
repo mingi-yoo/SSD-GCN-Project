@@ -11,6 +11,10 @@
 
 using namespace std;
 
+/*
+* global variables
+* defined in IniParser.cpp
+*/
 extern uint64_t MAX_READ_BYTE; 
 extern uint64_t MAX_READ_INT; 
 extern uint64_t UNIT_INT_BYTE; 
@@ -24,6 +28,12 @@ extern uint64_t WEIGHT_START;
 extern uint64_t OUTPUT_START;
 
 enum Type {A_COL, A_ROW, X_VAL, X_COL, X_ROW, WEIGHT, OUTPUT};
+
+//for weight buffer
+struct WB_Data {
+	uint64_t address;
+	uint64_t req; // 몇 번 리퀘스트 받았는가?
+};
 
 //{Row, Col} or {weight_h, weight_w}
 struct Tuple {
@@ -40,8 +50,9 @@ struct AXBuffer {
 
 struct WeightBuffer {
 	uint64_t remain_space;
-	vector<Tuple> active;
-	vector<Tuple> expire;
+	vector<WB_Data> active;
+	vector<WB_Data> expire;
+	vector<WB_Data> request;
 };
 
 struct OutputBuffer {

@@ -48,12 +48,7 @@ void DRAMInterface::ReadCompleteCallback(unsigned id, uint64_t address, uint64_t
 	if (belong == OUTPUT)
 		belong = WEIGHT;
 	buffer->FillBuffer(address, belong);
-	if (belong == WEIGHT)
-	{
-		buffer->present_w_req -= MAX_READ_BYTE;
-		buffer->isready = true;
-	}
-	else
+	if (belong != WEIGHT)
 	{
 		buffer->present_ax_req -= MAX_READ_BYTE;
 	}
@@ -70,12 +65,12 @@ void DRAMInterface::ReadCompleteCallback(unsigned id, uint64_t address, uint64_t
 	else if (belong == A_ROW)
 		print = "A_ROW";
 
-	cout<<"Cycle: "<<dec<<cycle<<". Data Read Complete. Type: "<<print<<" Address: "<<address<<endl;
+	cout<<"Cycle: "<<dec<<cycle<<". Data Read Complete. Type: "<<print<<" Address: "<<hex<<address<<endl;
 }
 
 void DRAMInterface::WriteCompleteCallback(unsigned id, uint64_t address, uint64_t clock_cycle) 
 {
-	cout<<"Cycle: "<<dec<<cycle<<". Output Write Complete. Address: "<<address<<endl;
+	cout<<"Cycle: "<<dec<<cycle<<". Output Write Complete. Address: "<<hex<<address<<endl;
 }
 
 Type DRAMInterface::WhereisItBelong(uint64_t address) {

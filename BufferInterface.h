@@ -37,17 +37,16 @@ public:
 	Tuple weightsize;
 	uint64_t axbuffersize;
 	uint64_t weightbuffersize;
-	bool isready; //Weight가 버퍼에 들어온 경우
 	uint64_t present_ax_req; //현재 accelerator가 리퀘스트 한 정도
 	uint64_t present_w_req;
-	uint64_t shed_row;
 	BufferInterface(uint64_t axbuffersize, 
 					uint64_t weightbuffersize, 
 					uint64_t outputbuffersize,
 					DataReader *data_);
 	~BufferInterface();
 	void FillBuffer(uint64_t address, Type iswhat);
-	uint64_t ShedRow(bool isA);
+	uint64_t ShedRow();
+	uint64_t ShedCol();
 	bool IsFilled(Type iswhat);
 	bool AuxIsFilled(Type iswhat);
 	bool XEnd(); //MAC2로 넘어갈 준비가 되었는가
@@ -62,6 +61,7 @@ public:
 	bool AuxXValEnd();
 	bool AuxARowEnd();
 	bool AuxAColEnd();
+	bool isReady(uint64_t address);
 	void Reset(); //다시 채우는 함수
 	uint64_t PopData(Type iswhat);
 	float PopValData();
@@ -70,8 +70,9 @@ public:
 	void ClearMACData(bool rowtoo);
 	//weight용
 	bool canRequest();
-	bool isExist(uint64_t address); //weight or xw계산한 값 존재?
-	void MACEnd();
+	void Request(uint64_t address);
+	bool Requested(uint64_t address); // RequestController 에서만 사용되어야 함
+	bool isExist(uint64_t address); //weight 값 존재? (Request controller에서만 사용되어야 함)
 	bool Expire(uint64_t address);
 	//테스트용
 	void print_status();
@@ -83,6 +84,8 @@ private:
 	uint64_t col_for_fold;
 	uint64_t row_for_fold;
 	uint64_t space_log;
+	uint64_t shed_row;
+	uint64_t shed_col;
 	WeightBuffer weightbuffer;
 	OutputBuffer outputbuffer;
 	BufFlag flag;
