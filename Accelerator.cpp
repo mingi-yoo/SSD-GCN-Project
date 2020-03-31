@@ -365,7 +365,7 @@ void Accelerator::MACControllerRun()
 {
 	uint64_t address;
 	
-	if (flag.mac1)
+	if (flag.mac_1)
 	{
 		if (!macflag.macisready) //맨 처음 상태 
 		{

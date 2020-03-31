@@ -498,7 +498,7 @@ bool BufferInterface::AuxAColEnd()
 * expire() : active내의 데이터 중 특정 address 의 data만 expire시키고 싶을 때 쓸 수 있는 함수
 *
 */
-bool isReady(uint64_t address)
+bool BufferInterface::isReady(uint64_t address)
 {
 	vector<WB_Data>::iterator iter;
 	for(iter = weightbuffer.active.begin(); iter != weightbuffer.active.end(); iter++)

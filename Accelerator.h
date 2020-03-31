@@ -84,6 +84,7 @@ private:
 	float present_mac_val;
 	uint64_t limit_ax_req;
 	uint64_t limit_w_req;
+	bool macover;
 	AXBuffer cheat; //리퀘스트가 더 가능한지 확인하는 변수
 	Coordinate present; //MACController 처리용
 	DRAMInterface *dram;
