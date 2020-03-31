@@ -39,6 +39,7 @@ Accelerator::Accelerator(uint64_t accdimension, DRAMInterface *dram_, BufferInte
 	flag = {false, false, false, false, true, false, false, false, true, false, true, true, true};
 	endflag = {false, false, false, false, false};
 	macflag = {true, false, false, false, false};
+	macover = false;
 }
 
 Accelerator::~Accelerator() {}
@@ -60,7 +61,7 @@ bool Accelerator::Run()
 	cout << buffer->AuxARowEnd()<<" "<<buffer->AuxAColEnd()<<endl;
 	cout<<"......................"<<endl;
 	*/
-	if (buffer->XEnd() && v_fold_over)
+	if (flag.mac_1 && macover)
 	{
 		present_w_fold++;
 		buffer->Reset();
@@ -84,7 +85,7 @@ bool Accelerator::Run()
 			cout<<"MAC1 End...."<<endl;
 		}
 	}
-	if (buffer->AEnd() && v_fold_over)
+	if (flag.mac_2 && macover)
 	{
 		present_w_fold++;
 		buffer->Reset();
@@ -418,6 +419,8 @@ void Accelerator::MACControllerRun()
 					cout<<"Row "<<dec<<present.row<<" is Complete."<<endl;
 					address = OUTPUT_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 					dram->DRAMRequest(address, true);
+					if (buffer->XEnd())
+						macover = true;
 				}
 			}
 		}
@@ -428,6 +431,8 @@ void Accelerator::MACControllerRun()
 			address = OUTPUT_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 			cout<<"MAC1 Running... Row: "<<dec<<present.row<<" is zero row...."<<endl;
 			dram->DRAMRequest(address, true);
+			if (buffer->XEnd())
+				macover = true;
 		}
 	}
 	else
@@ -482,6 +487,8 @@ void Accelerator::MACControllerRun()
 					cout<<"Row "<<dec<<present.row<<" is Complete."<<endl;
 					address = OUTPUT_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 					dram->DRAMRequest(address, true);
+					if (buffer->AEnd())
+						macover = true;
 				}
 			}
 		}
@@ -492,6 +499,8 @@ void Accelerator::MACControllerRun()
 			address = OUTPUT_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 			cout<<"MAC2 Running... Row: "<<dec<<present.row<<" is zero row...."<<endl;
 			dram->DRAMRequest(address, true);
+			if (buffer->AEnd())
+				macover = true;
 		}
 	}
 }
@@ -585,4 +594,5 @@ void Accelerator::Reset()
 	cheat.colindex = 0;
 	cheat.valindex = 0;
 	macflag = {true, false, false, false, false};
+	macover = false;
 }
