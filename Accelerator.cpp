@@ -428,6 +428,7 @@ void Accelerator::MACControllerRun()
 		{
 			macflag.v_fold_over = true;
 			macflag.maciszero = false;
+			macflag.first_get = true;
 			address = OUTPUT_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 			cout<<"MAC1 Running... Row: "<<dec<<present.row<<" is zero row...."<<endl;
 			dram->DRAMRequest(address, true);
@@ -496,6 +497,7 @@ void Accelerator::MACControllerRun()
 		{
 			macflag.v_fold_over = true;
 			macflag.maciszero = false;
+			macflag.first_get = true;
 			address = OUTPUT_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 			cout<<"MAC2 Running... Row: "<<dec<<present.row<<" is zero row...."<<endl;
 			dram->DRAMRequest(address, true);
