@@ -35,6 +35,9 @@ BufferInterface::BufferInterface(uint64_t axbuffersize,
 	this->axbuffersize = axbuffersize;
 	this->weightbuffersize = weightbuffersize;
 
+	mac1_count = data_->ifrowindex.size() - 1;
+	mac2_count = data_->adjrowindex.size() - 1;
+
 	present_ax_req = 0;
 	present_w_req = 0;
 
@@ -385,7 +388,8 @@ bool BufferInterface::XEnd()
 		present.valindex >= data->ifvalue.size() &&
 		aux_present.rowindex >= data->ifrowindex.size() &&
 		aux_present.colindex >= data->ifcolindex.size() &&
-		aux_present.valindex >= data->ifvalue.size())
+		aux_present.valindex >= data->ifvalue.size() &&
+		mac1_count == 0)
 	{
 		return true;
 	}
@@ -400,7 +404,8 @@ bool BufferInterface::AEnd()
 		present.rowindex >= data->adjrowindex.size() && 
 		present.colindex >= data->adjcolindex.size() &&
 		aux_present.rowindex >= data->adjrowindex.size() &&
-		aux_present.colindex >= data->adjcolindex.size())
+		aux_present.colindex >= data->adjcolindex.size() &&
+		mac2_count == 0)
 		return true;
 	else
 		return false; // Dummy

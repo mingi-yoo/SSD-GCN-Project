@@ -71,6 +71,10 @@ void DRAMInterface::ReadCompleteCallback(unsigned id, uint64_t address, uint64_t
 void DRAMInterface::WriteCompleteCallback(unsigned id, uint64_t address, uint64_t clock_cycle) 
 {
 	cout<<"Cycle: "<<dec<<cycle<<". Output Write Complete. Address: "<<hex<<address<<endl;
+	if (!buffer->isA)
+		buffer->mac1_count--;
+	else
+		buffer->mac2_count--;
 }
 
 Type DRAMInterface::WhereisItBelong(uint64_t address) {
