@@ -81,7 +81,7 @@ bool Accelerator::Run()
 		buffer->present_ax_req = 0;
 		if (present_w_fold > w_fold)
 		{
-			progrmover = true;
+			programover = true;
 		}
 	}
 	if (flag.mac_1 && programover && buffer->mac1_count == 0)
@@ -108,7 +108,7 @@ bool Accelerator::Run()
 		present_v_fold = 0;
 		if (present_w_fold > w_fold)
 		{
-			prgramover = true;			
+			programover = true;			
 		}
 	}
 	if (flag.mac_2 && programover && buffer->mac2_count == 0)
@@ -121,6 +121,8 @@ bool Accelerator::Run()
 
 void Accelerator::RequestControllerRun()
 {
+	if (programover)
+		return;
 	if (buffer->present_ax_req >= limit_ax_req)
 	{
 		flag.ax_req_ok = false;
@@ -376,7 +378,9 @@ void Accelerator::RequestControllerRun()
 void Accelerator::MACControllerRun()
 {
 	uint64_t address;
-	
+
+	if (programover)
+		return;
 	if (flag.mac_1)
 	{
 		if (!macflag.macisready) //맨 처음 상태 
