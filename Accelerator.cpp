@@ -40,6 +40,7 @@ Accelerator::Accelerator(uint64_t accdimension, DRAMInterface *dram_, BufferInte
 	endflag = {false, false, false, false, false};
 	macflag = {true, false, false, false, false};
 	macover = false;
+	programover = false;
 }
 
 Accelerator::~Accelerator() {}
@@ -61,7 +62,10 @@ bool Accelerator::Run()
 	cout << buffer->AuxARowEnd()<<" "<<buffer->AuxAColEnd()<<endl;
 	cout<<"......................"<<endl;
 	*/
-	if (flag.mac_1 && macover)
+	RequestControllerRun();
+	MACControllerRun();
+
+	if (flag.mac_1 && macover && !programover)
 	{
 		present_w_fold++;
 		buffer->Reset();
@@ -77,16 +81,21 @@ bool Accelerator::Run()
 		buffer->present_ax_req = 0;
 		if (present_w_fold > w_fold)
 		{
-			present_w_fold = 0;
-			flag.x_row_req = false;
-			flag.a_row_req = true;
-			flag.mac_1 = false;
-			flag.mac_2 = true;
-			buffer->isA = true;
-			cout<<"MAC1 End...."<<endl;
+			progrmover = true;
 		}
 	}
-	if (flag.mac_2 && macover)
+	if (flag.mac_1 && programover && buffer->mac1_count == 0)
+	{
+		present_w_fold = 0;
+		flag.x_row_req = false;
+		flag.a_row_req = true;
+		flag.mac_1 = false;
+		flag.mac_2 = true;
+		buffer->isA = true;
+		programover = false;
+		cout<<"MAC1 End...."<<endl;
+	}
+	if (flag.mac_2 && macover && !programover)
 	{
 		present_w_fold++;
 		buffer->Reset();
@@ -99,12 +108,14 @@ bool Accelerator::Run()
 		present_v_fold = 0;
 		if (present_w_fold > w_fold)
 		{
-			ret = false;
+			prgramover = true;			
 		}
 	}
-	RequestControllerRun();
-	MACControllerRun();
-
+	if (flag.mac_2 && programover && buffer->mac2_count == 0)
+	{
+		ret = false;
+	}
+	
 	return ret;
 }
 

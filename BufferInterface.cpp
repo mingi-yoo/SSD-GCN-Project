@@ -388,8 +388,7 @@ bool BufferInterface::XEnd()
 		present.valindex >= data->ifvalue.size() &&
 		aux_present.rowindex >= data->ifrowindex.size() &&
 		aux_present.colindex >= data->ifcolindex.size() &&
-		aux_present.valindex >= data->ifvalue.size() &&
-		mac1_count == 0)
+		aux_present.valindex >= data->ifvalue.size())
 	{
 		return true;
 	}
@@ -404,8 +403,7 @@ bool BufferInterface::AEnd()
 		present.rowindex >= data->adjrowindex.size() && 
 		present.colindex >= data->adjcolindex.size() &&
 		aux_present.rowindex >= data->adjrowindex.size() &&
-		aux_present.colindex >= data->adjcolindex.size() &&
-		mac2_count == 0)
+		aux_present.colindex >= data->adjcolindex.size())
 		return true;
 	else
 		return false; // Dummy
