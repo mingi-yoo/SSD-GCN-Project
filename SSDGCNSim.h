@@ -6,6 +6,8 @@
 #define __SSDGCNSIM_H__
 
 #include <math.h>
+#include <fstream>
+#include <unistd.h>
 #include "IniParser.h"
 #include "DataReader.h"
 #include "DRAMInterface.h"

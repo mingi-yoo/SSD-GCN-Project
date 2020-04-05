@@ -7,6 +7,9 @@
 using namespace std;
 
 uint64_t cycle;
+uint64_t read_count;
+uint64_t write_count;
+uint64_t dram_use_byte;
 
 SSDGCNSim::SSDGCNSim(IniParser *iniparser, DataReader *datareader) {
     cout << "==== Initializing SSDGCNSim ====" << endl;
@@ -44,4 +47,23 @@ void SSDGCNSim::RunSimulator()
     dram->UpdateCycle();
   }
   cout<<"End... Total Cycle: "<<dec<<cycle<<endl;
+
+  int i = 0;
+  string path = "result/output0.txt";
+  while (access(path.c_str(), F_OK) != -1)
+  {
+    i++;
+    path = "result/output"+to_string(i)+".txt";
+  }
+  ofstream output(path);
+
+  double bps = static_cast<double>(dram_use_byte)/cycle/1e-9; 
+
+  output<<"Total Cycle: "<<dec<<cycle<<endl;
+  output<<"Total Read Request Count: "<<dec<<read_count<<endl;
+  output<<"Total Write Request Count: "<<dec<<write_count<<endl;
+  output<<"Total DRAM Usage: "<<dec<<dram_use_byte<<"Byte"<<endl;
+  output<<"DRAM Usage Byte per second: "<<dec<<bps<<"Byte/s"<<endl;
+
+  output.close();
 }
