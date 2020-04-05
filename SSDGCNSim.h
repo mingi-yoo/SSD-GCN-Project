@@ -8,6 +8,8 @@
 #include <math.h>
 #include <fstream>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "IniParser.h"
 #include "DataReader.h"
 #include "DRAMInterface.h"

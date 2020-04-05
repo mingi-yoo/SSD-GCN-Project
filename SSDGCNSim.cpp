@@ -49,6 +49,11 @@ void SSDGCNSim::RunSimulator()
   cout<<"End... Total Cycle: "<<dec<<cycle<<endl;
 
   int i = 0;
+  struct stat st = {0};
+  if (stat("result", &st) == -1)
+  {
+    mkdir("result", 0700);
+  }
   string path = "result/output0.txt";
   while (access(path.c_str(), F_OK) != -1)
   {
