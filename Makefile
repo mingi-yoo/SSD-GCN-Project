@@ -16,7 +16,6 @@ LDLIBS := -ldramsim
 
 CXXFLAGS += -std=c++11 -Wall -g
 LDFLAGS += -L$(dir $(dram_library))
-include_dir := -soname
 
 CXX := g++
 RM := rm -f
@@ -53,13 +52,15 @@ $(program): $(dram_library) $(objects)
 $(dram_library):
 	$(MAKE) --directory=$(dir $@) $(notdir $@)
 
-%.o: %.cpp
-	$(COMPILE.cpp) $< -I$(dir $(dram_library))
+-include $(dependencies)
 
 %.d: %.cpp
 	$(CXX) -MM $< > $@
 
--include $(dependencies)
+%.o: %.cpp
+	$(COMPILE.cpp) $< -I$(dir $(dram_library))
+
+
 
 .PHONY: clean
 clean:

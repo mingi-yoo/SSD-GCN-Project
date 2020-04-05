@@ -1,0 +1,5 @@
+Total Cycle: 862
+Total Read Request Count: 57
+Total Write Request Count: 60
+Total DRAM Usage: 7488Byte
+DRAM Usage Byte per second: 8.68677GByte/s
