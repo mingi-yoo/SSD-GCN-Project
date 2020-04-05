@@ -12,7 +12,7 @@ void print_initialize(IniParser *i, DataReader *d);
 
 int main(int argc, char** argv)
 {
-	ini option = 0;
+	int option = 0;
 	string ini;
 	string data;
 
