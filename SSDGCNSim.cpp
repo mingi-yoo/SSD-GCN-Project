@@ -62,13 +62,13 @@ void SSDGCNSim::RunSimulator()
   }
   ofstream output(path);
 
-  double bps = static_cast<double>(dram_use_byte)/cycle/1e-9; 
+  double bps = static_cast<double>(dram_use_byte)/cycle; 
 
   output<<"Total Cycle: "<<dec<<cycle<<endl;
   output<<"Total Read Request Count: "<<dec<<read_count<<endl;
   output<<"Total Write Request Count: "<<dec<<write_count<<endl;
   output<<"Total DRAM Usage: "<<dec<<dram_use_byte<<"Byte"<<endl;
-  output<<"DRAM Usage Byte per second: "<<dec<<bps<<"Byte/s"<<endl;
+  output<<"DRAM Usage Byte per second: "<<dec<<bps<<"GByte/s"<<endl;
 
   output.close();
 }
