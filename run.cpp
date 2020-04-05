@@ -6,12 +6,30 @@
 
 using namespace std;
 
+extern char *optarg;
+
 void print_initialize(IniParser *i, DataReader *d);
 
 int main(int argc, char** argv)
 {
-	IniParser *iniparser = new IniParser("start.ini");
-	DataReader *datareader = new DataReader("data.txt");
+	ini option = 0;
+	string ini;
+	string data;
+
+	while ((option = getopt(argc, argv, "i:d:")) != EOF)
+	{
+		switch (option)
+		{
+			case 'i':
+				ini = optarg;
+				break;
+			case 'd':
+				data = optarg;
+				break;
+		}
+	}
+	IniParser *iniparser = new IniParser(ini);
+	DataReader *datareader = new DataReader(data);
 
 	print_initialize(iniparser,datareader);
 

@@ -24,8 +24,8 @@ RM := rm -f
 # TEST MACRO
 ###########################
 
-test := test
-test_sources := IniParser.cpp DataReader.cpp test.cpp BufferInterface.cpp#write down test sources
+test := run
+test_sources := IniParser.cpp DataReader.cpp run.cpp BufferInterface.cpp#write down test sources
 test_objects := $(subst .cpp,.o,$(test_sources))
 
 
