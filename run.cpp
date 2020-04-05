@@ -15,6 +15,12 @@ int main(int argc, char** argv)
 	int option = 0;
 	string ini;
 	string data;
+	
+	if (argc == 1)
+	{
+		cout<<"You must follow this form: \'./sim -i inifile_path -d datafile_path\'"<<endl;
+		return 0;
+	}
 
 	while ((option = getopt(argc, argv, "i:d:")) != EOF)
 	{
@@ -27,9 +33,8 @@ int main(int argc, char** argv)
 				data = optarg;
 				break;
 			case '?':
-				cout<<"You enter the wrong option."<<endl;
 				cout<<"You must follow this form: \'./sim -i inifile_path -d datafile_path\'"<<endl;
-				return;
+				return 0;
 		}
 	}
 	IniParser *iniparser = new IniParser(ini);
