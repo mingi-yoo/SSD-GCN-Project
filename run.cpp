@@ -26,6 +26,9 @@ int main(int argc, char** argv)
 			case 'd':
 				data = optarg;
 				break;
+			case '?':
+				cout<<"You enter the wrong option."<<endl;
+				cout<<"You must follow this form: \'./sim -i inifile_path -d datafile_path\'"<<endl;
 		}
 	}
 	IniParser *iniparser = new IniParser(ini);
