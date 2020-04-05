@@ -9,6 +9,7 @@ program := sim
 
 sources := $(wildcard *.cpp)
 objects := $(subst .cpp,.o,$(sources))
+dependencies := $(subst .cpp,.d,$(sources))
 
 dram_library := ./DRAMSim2/libdramsim.so
 LDLIBS := -ldramsim
@@ -55,10 +56,15 @@ $(dram_library):
 %.o: %.cpp
 	$(COMPILE.cpp) $< -I$(dir $(dram_library))
 
+%.d: %.cpp
+	$(CXX) -MM $< > $@
+
+-include $(dependencies)
+
 .PHONY: clean
 clean:
 	$(MAKE) --directory=$(dir $(dram_library)) clean
-	$(RM) $(objects) $(program)
+	$(RM) $(objects) $(program) $(dependencies)
 	$(RM) $(test_objects) $(test)
 
 
