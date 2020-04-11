@@ -25,6 +25,7 @@ BufferInterface::BufferInterface(uint64_t axbuffersize,
 
 	weightbuffer.remain_space = weightbuffersize;
 	outputbuffer.remain_space = outputbuffersize;
+	outputbuffer.size = outputbuffersize;
 	mac_start = false;
 	isA = false;
 	data = data_;
@@ -105,6 +106,7 @@ void BufferInterface::FillBuffer(uint64_t address, Type iswhat)
 			flag.x_row = true;
 			break;
 		case WEIGHT:
+		{
 			vector<WB_Data>::iterator iter;
 			bool isWork = false; // 정상적으로 작동했는지 확인용
 
@@ -122,7 +124,30 @@ void BufferInterface::FillBuffer(uint64_t address, Type iswhat)
 			}
 			assert(isWork);
 			break;
+		}
+		case OUTPUT:
+			outputbuffer.address.push_back(address);
+			FillOutputBuffer();
+			flag.output = true;
+			break;
 	}
+}
+
+void BufferInterface::FillOutputBuffer()
+{
+	outputbuffer.remain_space -= MAX_READ_BYTE;
+}
+
+void BufferInterface::RemoveOutputBuffer()
+{
+	outputbuffer.remain_space += MAX_READ_BYTE;
+	if (outputbuffer.remain_space == outputbuffer.size)
+		flag.output = false;
+}
+
+bool BufferInterface::IsOutputFulled()
+{
+	return (outputbuffer.remain_space < 2 * MAX_READ_BYTE);
 }
 
 bool BufferInterface::IsFilled(Type iswhat)
@@ -150,7 +175,10 @@ bool BufferInterface::IsFilled(Type iswhat)
 			ret = flag.weight;
 			break;
 		case OUTPUT:
-			ret = flag.output;
+			if (outputbuffer.address.empty())
+				ret = false;
+			else
+				ret = true;			
 			break;
 	}
 
@@ -598,6 +626,52 @@ bool BufferInterface::isExist(uint64_t address) // for weight address
 				WB_Data t = {address, 1};
 				weightbuffer.active.push_back(t);
 				weightbuffer.expire.erase(iter);
+				return true;
+			}
+		}
+	}
+
+	// buffer 안에 없음
+	return false;
+}
+
+
+bool BufferInterface::RequestedforOutput(uint64_t address)
+{
+	if(!weightbuffer.request.empty())
+	{
+		vector<WB_Data>::iterator iter;
+		for(iter = weightbuffer.request.begin(); iter != weightbuffer.request.end(); iter++)
+		{
+			if(iter->address == address) // already requested
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
+bool BufferInterface::isExistforOutput(uint64_t address)
+{
+	vector<WB_Data>::iterator iter;
+	if(!weightbuffer.active.empty())
+	{
+		for(iter = weightbuffer.active.begin(); iter != weightbuffer.active.end(); iter++)
+		{
+			if (iter->address == address) // hit
+			{
+				return true;
+			}
+		}
+	}
+	if(!weightbuffer.expire.empty())
+	{
+		for(iter = weightbuffer.expire.begin(); iter != weightbuffer.expire.end(); iter++) 
+		{
+			if (iter->address == address) // hit
+			{
 				return true;
 			}
 		}

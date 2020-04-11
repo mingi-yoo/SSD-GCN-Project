@@ -42,12 +42,17 @@ public:
 	uint64_t mac1_count;
 	uint64_t mac2_count;
 	bool isA;
+	vector<uint64_t> req_output;
+	OutputBuffer outputbuffer;
 	BufferInterface(uint64_t axbuffersize, 
 					uint64_t weightbuffersize, 
 					uint64_t outputbuffersize,
 					DataReader *data_);
 	~BufferInterface();
 	void FillBuffer(uint64_t address, Type iswhat);
+	void FillOutputBuffer();
+	void RemoveOutputBuffer();
+	bool IsOutputFulled();
 	bool IsFilled(Type iswhat);
 	bool AuxIsFilled(Type iswhat);
 	bool AuxIsFulled();
@@ -78,6 +83,8 @@ public:
 	bool Requested(uint64_t address); // RequestController 에서만 사용되어야 함
 	bool isExist(uint64_t address); //weight 값 존재? (Request controller에서만 사용되어야 함)
 	bool Expire(uint64_t address);
+	bool RequestedforOutput(uint64_t address);
+	bool isExistforOutput(uint64_t address);
 	//테스트용
 	void print_status();
 
@@ -89,7 +96,6 @@ private:
 	uint64_t row_for_fold;
 	uint64_t space_log;
 	WeightBuffer weightbuffer;
-	OutputBuffer outputbuffer;
 	BufFlag flag;
 	BufFlag aux_flag;
 	BufIndex present; //첫 번째 버퍼의 위치를 가리키는 인덱스

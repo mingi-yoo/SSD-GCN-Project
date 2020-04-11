@@ -5,7 +5,6 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-#include <queue>
 #include <vector>
 #include <cassert>
 
@@ -57,8 +56,9 @@ struct WeightBuffer {
 };
 
 struct OutputBuffer {
+	uint64_t size;
 	uint64_t remain_space;
-	queue<uint64_t> address; 
+	vector<uint64_t> address; 
 };
 
 #endif

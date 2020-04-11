@@ -56,6 +56,7 @@ struct MACAuxFlag
 	bool v_fold_over;
 	bool macisready;
 	bool maciszero;
+	bool wait;
 };
 
 struct TempRegister
@@ -64,6 +65,19 @@ struct TempRegister
 	bool check2;
 	uint64_t w_start_addr;
 	uint64_t w_end_addr;
+};
+
+struct WaitTuple
+{
+	uint64_t o_start_addr;
+	uint64_t o_end_addr;
+	bool start_comp;
+	bool end_comp;
+};
+
+struct WaitQueue
+{
+	vector<WaitTuple> o_addr;
 };
 
 class Accelerator {
@@ -96,8 +110,6 @@ private:
 	uint64_t mask;
 	bool macover;
 	bool programover;
-	bool jc1;
-	bool jc2;
 	AXBuffer cheat; //리퀘스트가 더 가능한지 확인하는 변수
 	Coordinate present; //MACController 처리용
 	DRAMInterface *dram;
@@ -107,6 +119,8 @@ private:
 	EndFlag endflag;
 	MACAuxFlag macflag;
 	TempRegister temp;
+	TempRegister aux_temp;
+	WaitQueue wait;
 	void RequestControllerRun();
 	void MACControllerRun();
 	void Request(Type iswhat);

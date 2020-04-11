@@ -48,10 +48,29 @@ void DRAMInterface::ReadCompleteCallback(unsigned id, uint64_t address, uint64_t
 { 
 	Type belong = WhereisItBelong(address);
 	string print;
-	if (belong == OUTPUT)
-		belong = WEIGHT;
-	buffer->FillBuffer(address, belong);
-	if (belong != WEIGHT)
+	if (belong == OUTPUT && buffer->isA)
+	{
+		vector<uint64_t>::iterator iter;
+		for (iter = buffer->req_output.begin(); iter != buffer->req_output.end(); iter++)
+		{
+			if (*iter == address)
+			{
+				buffer->FillBuffer(address, OUTPUT);
+				buffer->req_output.erase(iter);
+				break;
+			}
+		}
+		if (buffer->RequestedforOutput(address))
+		{
+			buffer->FillBuffer(address, WEIGHT);
+		}
+
+	}
+	else
+	{
+		buffer->FillBuffer(address, belong);
+	}
+	if (belong != WEIGHT && belong != OUTPUT)
 	{
 		buffer->present_ax_req -= MAX_READ_BYTE;
 	}
@@ -67,6 +86,8 @@ void DRAMInterface::ReadCompleteCallback(unsigned id, uint64_t address, uint64_t
 		print = "A_COLUMN";
 	else if (belong == A_ROW)
 		print = "A_ROW";
+	else if (belong == OUTPUT)
+		print = "OUTPUT";
 
 	cout<<"Cycle: "<<dec<<cycle<<". Data Read Complete. Type: "<<print<<" Address: "<<hex<<address<<endl;
 	dram_use_byte += 64;
