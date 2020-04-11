@@ -17,6 +17,7 @@ uint64_t X_COL_START;
 uint64_t X_ROW_START;  
 uint64_t WEIGHT_START; 
 uint64_t OUTPUT_START;
+uint64_t OUTPUT2_START;
 
 IniParser::IniParser(string path) { ReadIni(path); }
 
@@ -117,5 +118,6 @@ void IniParser::ParseIni()
 	X_COL_START = GetUint64("XColStartAddress");
 	X_ROW_START = GetUint64("XRowStartAddress");
 	WEIGHT_START = GetUint64("WeightStartAddress");
-	OUTPUT_START = GetUint64("OutputStartAddress");
+	OUTPUT_START = GetUint64("XOutputStartAddress");
+	OUTPUT2_START = GetUint64("AOutputStartAddress");
 }

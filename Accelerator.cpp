@@ -562,21 +562,13 @@ void Accelerator::MACControllerRun()
 										find->o_end_addr == aux_temp.w_end_addr)
 										check2 = true;
 								}
-								if (!buffer->isExistforOutput(aux_temp.w_start_addr) && !buffer->RequestedforOutput(aux_temp.w_start_addr) && !check1)
+								if (!check1)
 								{
 									dram->DRAMRequest(aux_temp.w_start_addr, false);
 								}
-								if (!buffer->isExistforOutput(aux_temp.w_end_addr) && !buffer->RequestedforOutput(aux_temp.w_end_addr) && !check2)
+								if (!check2)
 								{
 									dram->DRAMRequest(aux_temp.w_end_addr, false);
-								}
-								if (buffer->isExistforOutput(aux_temp.w_start_addr))
-								{
-									buffer->FillBuffer(aux_temp.w_start_addr, OUTPUT);
-								}
-								if (buffer->isExistforOutput(aux_temp.w_end_addr))
-								{
-									buffer->FillBuffer(aux_temp.w_end_addr, OUTPUT);
 								}
 								vector<uint64_t>::iterator iter;
 								check1 = false;
@@ -639,21 +631,13 @@ void Accelerator::MACControllerRun()
 								find->o_end_addr == aux_temp.w_end_addr)
 								check2 = true;
 						}
-						if (!buffer->isExistforOutput(aux_temp.w_start_addr) && !buffer->RequestedforOutput(aux_temp.w_start_addr) && !check1)
+						if (!check1)
 						{
 							dram->DRAMRequest(aux_temp.w_start_addr, false);
 						}
-						if (!buffer->isExistforOutput(aux_temp.w_end_addr) && !buffer->RequestedforOutput(aux_temp.w_end_addr) && !check2)
+						if (!check2)
 						{
 							dram->DRAMRequest(aux_temp.w_end_addr, false);
-						}
-						if (buffer->isExistforOutput(aux_temp.w_start_addr))
-						{
-							buffer->FillBuffer(aux_temp.w_start_addr, OUTPUT);
-						}
-						if (buffer->isExistforOutput(aux_temp.w_end_addr))
-						{
-							buffer->FillBuffer(aux_temp.w_end_addr, OUTPUT);
 						}
 						vector<uint64_t>::iterator iter;
 						check1 = false;
@@ -749,7 +733,7 @@ void Accelerator::MACControllerRun()
 						macflag.macisready = false;
 						macflag.fold_start = false;
 						cout<<"Row "<<dec<<present.row<<" is Complete."<<endl;
-						address = OUTPUT_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
+						address = OUTPUT2_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 						aux_temp.w_start_addr = address & mask;
 						aux_temp.w_end_addr = (address + 63) & mask;
 						if (aux_temp.w_start_addr != aux_temp.w_end_addr)
@@ -773,21 +757,13 @@ void Accelerator::MACControllerRun()
 										find->o_end_addr == aux_temp.w_end_addr)
 										check2 = true;
 								}
-								if (!buffer->isExistforOutput(aux_temp.w_start_addr) && !buffer->RequestedforOutput(aux_temp.w_start_addr) && !check1)
+								if (!check1)
 								{
 									dram->DRAMRequest(aux_temp.w_start_addr, false);
 								}
-								if (!buffer->isExistforOutput(aux_temp.w_end_addr) && !buffer->RequestedforOutput(aux_temp.w_end_addr) && !check2)
+								if (!check2)
 								{
 									dram->DRAMRequest(aux_temp.w_end_addr, false);
-								}
-								if (buffer->isExistforOutput(aux_temp.w_start_addr))
-								{
-									buffer->FillBuffer(aux_temp.w_start_addr, OUTPUT);
-								}
-								if (buffer->isExistforOutput(aux_temp.w_end_addr))
-								{
-									buffer->FillBuffer(aux_temp.w_end_addr, OUTPUT);
 								}
 								vector<uint64_t>::iterator iter;
 								check1 = false;
@@ -825,7 +801,7 @@ void Accelerator::MACControllerRun()
 				macflag.v_fold_over = true;
 				macflag.maciszero = false;
 				macflag.first_get = true;
-				address = OUTPUT_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
+				address = OUTPUT2_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
 				cout<<"MAC2 Running... Row: "<<dec<<present.row<<" is zero row...."<<endl;
 				aux_temp.w_start_addr = address & mask;
 				aux_temp.w_end_addr = (address + 63) & mask;
@@ -850,21 +826,13 @@ void Accelerator::MACControllerRun()
 								find->o_end_addr == aux_temp.w_end_addr)
 								check2 = true;
 						}
-						if (!buffer->isExistforOutput(aux_temp.w_start_addr) && !buffer->RequestedforOutput(aux_temp.w_start_addr) && !check1)
+						if (!check1)
 						{
 							dram->DRAMRequest(aux_temp.w_start_addr, false);
 						}
-						if (!buffer->isExistforOutput(aux_temp.w_end_addr) && !buffer->RequestedforOutput(aux_temp.w_end_addr) && !check2)
+						if (!check2)
 						{
 							dram->DRAMRequest(aux_temp.w_end_addr, false);
-						}
-						if (buffer->isExistforOutput(aux_temp.w_start_addr))
-						{
-							buffer->FillBuffer(aux_temp.w_start_addr, OUTPUT);
-						}
-						if (buffer->isExistforOutput(aux_temp.w_end_addr))
-						{
-							buffer->FillBuffer(aux_temp.w_end_addr, OUTPUT);
 						}
 						vector<uint64_t>::iterator iter;
 						check1 = false;
@@ -913,21 +881,13 @@ void Accelerator::MACControllerRun()
 					find->o_end_addr == aux_temp.w_end_addr)
 					check2 = true;
 			}
-			if (!buffer->isExistforOutput(aux_temp.w_start_addr) && !buffer->RequestedforOutput(aux_temp.w_start_addr) && !check1)
+			if (!check1)
 			{
 				dram->DRAMRequest(aux_temp.w_start_addr, false);
 			}
-			if (!buffer->isExistforOutput(aux_temp.w_end_addr) && !buffer->RequestedforOutput(aux_temp.w_end_addr) && !check2)
+			if (!check2)
 			{
 				dram->DRAMRequest(aux_temp.w_end_addr, false);
-			}
-			if (buffer->isExistforOutput(aux_temp.w_start_addr))
-			{
-				buffer->FillBuffer(aux_temp.w_start_addr, OUTPUT);
-			}
-			if (buffer->isExistforOutput(aux_temp.w_end_addr))
-			{
-				buffer->FillBuffer(aux_temp.w_end_addr, OUTPUT);
 			}
 			vector<uint64_t>::iterator iter;
 			check1 = false;

@@ -25,8 +25,9 @@ extern uint64_t X_COL_START;
 extern uint64_t X_ROW_START;  
 extern uint64_t WEIGHT_START; 
 extern uint64_t OUTPUT_START;
+extern uint64_t OUTPUT2_START;
 
-enum Type {A_COL, A_ROW, X_VAL, X_COL, X_ROW, WEIGHT, OUTPUT};
+enum Type {A_COL, A_ROW, X_VAL, X_COL, X_ROW, WEIGHT, OUTPUT, OUTPUT2};
 
 //for weight buffer
 struct WB_Data {
