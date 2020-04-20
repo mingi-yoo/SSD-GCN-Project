@@ -27,7 +27,6 @@ Accelerator::Accelerator(uint64_t accdimension, DRAMInterface *dram_, BufferInte
 	if ((buffer_->weightsize.tuple[1] - w_fold * MAX_READ_INT) == v_fold_last * accdimension && v_fold_last > 0)
 		v_fold_last--;
 	present_w_fold = 0;
-	present_v_fold = 0;
 	present_mac_row = -1;
 	present_row = -1;
 
@@ -47,9 +46,27 @@ Accelerator::Accelerator(uint64_t accdimension, DRAMInterface *dram_, BufferInte
 	cheat.rowindex = 0;
 	flag = {false, false, false, false, true, false, false, false, true, false, true, true, true};
 	endflag = {false, false, false, false, false};
-	macflag = {true, false, false, false, false, false, false};
 	macover = false;
 	programover = false;
+	parallel = (uint64_t)floor((double)num_of_pe/MAX_READ_INT);
+	if (num_of_pe < w_fold)
+		parallel++;
+	present = new Coordinate[parallel];
+	remain_mac_col = new uint64_t[buffer->num_of_xrow];
+	for (int i = 0; i < parallel; i++)
+	{
+		present[i].present_v_fold = 0;
+		present[i].first_get = true;
+		present[i].second_get = false;
+		present[i].fold_start = false;
+		present[i].macisready = false;
+		present[i].maciszero = false;
+		present[i].isend = false;
+	}
+	iswait = false;
+	check_over = parallel;
+	check_row = 0;
+	row_num = 0;
 }
 
 Accelerator::~Accelerator() {}
@@ -82,7 +99,6 @@ bool Accelerator::Run()
 		endflag.x_row_end = false;
 		endflag.x_col_end = false;
 		endflag.x_val_end = false;
-		present_v_fold = 0;
 		buffer->present_ax_req = 0;
 		if (present_w_fold > w_fold)
 		{
@@ -110,7 +126,6 @@ bool Accelerator::Run()
 		flag.weight_req = false;
 		endflag.a_row_end = false;
 		endflag.a_col_end = false;
-		present_v_fold = 0;
 		if (present_w_fold > w_fold)
 		{
 			programover = true;			
@@ -470,440 +485,458 @@ void Accelerator::MACControllerRun()
 
 	if (programover && wait.o_addr.empty())
 		return;
-	if (!macflag.wait)
+	for (int i = 0; i < parallel; i++)
 	{
-		if (flag.mac_1)
+		if (!iswait)
 		{
-			
-			if (!macflag.macisready) //맨 처음 상태 
+			if (flag.mac_1)
 			{
-				if (buffer->AuxIsFilled(X_ROW) && macflag.first_get) //present라는 변수안에 처리해야할 데이터 집어넣음
+				if (!present[i].macisready) //맨 처음 상태 
 				{
-					remain_mac_col = buffer->ReadMACData(X_ROW);
-					present_mac_row++;
-					present.row = present_mac_row;
-					macflag.first_get = false;
-					macflag.second_get = true;
-					if (remain_mac_col == 0)
+					if (present[i].first_get) //present라는 변수안에 처리해야할 데이터 집어넣음
 					{
-						macflag.maciszero = true;
+						if (buffer->AuxIsFilled(X_ROW) && check_row == 0)
+						{
+							check_row = buffer->ReadMACData(X_ROW);
+							present_mac_row++;
+							remain_mac_col[present_mac_row] = check_row;
+						}
+						else if (!buffer->AuxIsFilled(X_ROW) && check_row == 0)
+							continue;
+						present[i].remain_mac_col = check_row;
+						present[i].row = present_mac_row;
+						present[i].first_get = false;
+						present[i].second_get = true;
+						if (check_row > 0) 
+							check_row--;
+						if (present[i].remain_mac_col == 0)
+						{
+							present[i].maciszero = true;
+						}
+					}
+					if (present[i].remain_mac_col != 0 && 
+						buffer->AuxIsFilled(X_COL) && 
+						buffer->AuxIsFilled(X_VAL) && 
+						present[i].second_get &&
+						!present[i].maciszero) //만일 zero row가 아니면
+					{
+						present[i].col = buffer->ReadMACData(X_COL);
+						present[i].val = buffer->ReadValMACData();
+						present[i].second_get = false;
+						present[i].fold_start = true;
+					}
+					if (buffer->AuxIsFilled(WEIGHT) && present[i].fold_start && !present[i].maciszero)
+					{
+						present[i].fold_start = false;
+						present[i].weight = buffer->ReadWeightTuple();
+						if (buffer->isReady(present[i].weight.tuple[0]) && buffer->isReady(present[i].weight.tuple[1])) //준비가 되었는가?
+							present[i].macisready = true;
+					}
+					else if (!present[i].first_get && !present[i].second_get && !present[i].fold_start && !present[i].maciszero) //준비 되었는가?
+					{
+						if (buffer->isReady(present[i].weight.tuple[0]) && buffer->isReady(present[i].weight.tuple[1]))
+							present[i].macisready = true;
 					}
 				}
-				if (remain_mac_col != 0 && 
-					buffer->AuxIsFilled(X_COL) && 
-					buffer->AuxIsFilled(X_VAL) && 
-					macflag.second_get &&
-					!macflag.maciszero) //만일 zero row가 아니면
+				if (present[i].macisready) // 준비됐으면 계산
 				{
-					present.col = buffer->ReadMACData(X_COL);
-					present.val = buffer->ReadValMACData();
-					macflag.second_get = false;
-					macflag.fold_start = true;
-				}
-				if (buffer->AuxIsFilled(WEIGHT) && macflag.fold_start && !macflag.maciszero)
-				{
-					macflag.fold_start = false;
-					present.weight = buffer->ReadWeightTuple();
-					if (buffer->isReady(present.weight.tuple[0]) && buffer->isReady(present.weight.tuple[1])) //준비가 되었는가?
-						macflag.macisready = true;
-				}
-				else if (!macflag.first_get && !macflag.second_get && !macflag.fold_start && !macflag.maciszero) //준비 되었는가?
-				{
-					if (buffer->isReady(present.weight.tuple[0]) && buffer->isReady(present.weight.tuple[1]))
-						macflag.macisready = true;
-				}
-			}
-			if (macflag.macisready) // 준비됐으면 계산
-			{
-				cout<<"MAC1 Running... v_fold: "<<dec<<present_v_fold<<
-				", w_fold: "<<dec<<present_w_fold<<
-				", Row: "<<dec<<present.row<<
-				", Col: "<<dec<<present.col<<
-				", Val: "<<present.val<<endl;
-				present_v_fold++;
-				if ((present_v_fold > v_fold && present_w_fold < w_fold) 
-					|| (present_v_fold > v_fold_last && present_w_fold == w_fold))
-				{
-					present_v_fold = 0;
-					remain_mac_col--;
-					macflag.v_fold_over = true;
-					macflag.second_get = true;
-					buffer->Expire(present.weight.tuple[0]);
-					if (present.weight.tuple[0] != present.weight.tuple[1])
-						buffer->Expire(present.weight.tuple[1]);
-					macflag.macisready = false;
-					if (remain_mac_col == 0)
+					cout<<"MAC1 Running... v_fold: "<<dec<<present[i].present_v_fold<<
+					", w_fold: "<<dec<<present_w_fold<<
+					", Row: "<<dec<<present[i].row<<
+					", Col: "<<dec<<present[i].col<<
+					", Val: "<<present[i].val<<endl;
+					present[i].present_v_fold++;
+					if ((present[i].present_v_fold > v_fold && present_w_fold < w_fold) 
+						|| (present[i].present_v_fold > v_fold_last && present_w_fold == w_fold))
 					{
-						macflag.first_get = true;
-						macflag.macisready = false;
-						macflag.fold_start = false;
-						cout<<"Row "<<dec<<present.row<<" is Complete."<<endl;
-						address = OUTPUT_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
-						aux_temp.w_start_addr = address & mask;
-						aux_temp.w_end_addr = (address + 63) & mask;
-						if (aux_temp.w_start_addr != aux_temp.w_end_addr)
+						present[i].present_v_fold = 0;
+						remain_mac_col[present[i].row]--;
+						present[i].second_get = true;
+						present[i].first_get = true;
+						present[i].macisready = false;
+						present[i].fold_start = false;
+						buffer->Expire(present[i].weight.tuple[0]);
+						if (present[i].weight.tuple[0] != present[i].weight.tuple[1])
+							buffer->Expire(present[i].weight.tuple[1]);
+						present[i].macisready = false;
+						if (remain_mac_col[present[i].row] == 0)
 						{
-							WaitTuple t;
-							t.o_start_addr = aux_temp.w_start_addr;
-							t.o_end_addr = aux_temp.w_end_addr;
-							t.start_comp = false;
-							t.end_comp = false;
-							if (!buffer->IsOutputFulled())
+							cout<<"Row "<<dec<<present[i].row<<" is Complete."<<endl;
+							row_num++;
+							address = OUTPUT_START + (present[i].row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
+							aux_temp.w_start_addr = address & mask;
+							aux_temp.w_end_addr = (address + 63) & mask;
+							if (aux_temp.w_start_addr != aux_temp.w_end_addr)
 							{
-								buffer->FillOutputBuffer();
-								vector<WaitTuple>::iterator find;
-								bool check1 = false, check2 = false;
-								for (find = wait.o_addr.begin(); find != wait.o_addr.end(); find++)
+								WaitTuple t;
+								t.o_start_addr = aux_temp.w_start_addr;
+								t.o_end_addr = aux_temp.w_end_addr;
+								t.start_comp = false;
+								t.end_comp = false;
+								if (!buffer->IsOutputFulled())
 								{
-									if (find->o_start_addr == aux_temp.w_start_addr ||
-										find->o_end_addr == aux_temp.w_start_addr)
-										check1 = true;
-									if (find->o_start_addr == aux_temp.w_end_addr ||
-										find->o_end_addr == aux_temp.w_end_addr)
-										check2 = true;
+									buffer->FillOutputBuffer();
+									vector<WaitTuple>::iterator find;
+									bool check1 = false, check2 = false;
+									for (find = wait.o_addr.begin(); find != wait.o_addr.end(); find++)
+									{
+										if (find->o_start_addr == aux_temp.w_start_addr ||
+											find->o_end_addr == aux_temp.w_start_addr)
+											check1 = true;
+										if (find->o_start_addr == aux_temp.w_end_addr ||
+											find->o_end_addr == aux_temp.w_end_addr)
+											check2 = true;
+									}
+									if (!check1)
+									{
+										dram->DRAMRequest(aux_temp.w_start_addr, false);
+									}
+									if (!check2)
+									{
+										dram->DRAMRequest(aux_temp.w_end_addr, false);
+									}
+									vector<uint64_t>::iterator iter;
+									check1 = false;
+									check2 = false;
+									for (iter = buffer->req_output.begin(); iter != buffer->req_output.end(); iter++)
+									{
+										if (*iter == aux_temp.w_start_addr)
+											check1 = true;
+										if (*iter == aux_temp.w_end_addr)
+											check2 = true;
+									}
+									if (!check1)
+										buffer->req_output.push_back(aux_temp.w_start_addr);
+									if (!check2)
+										buffer->req_output.push_back(aux_temp.w_end_addr);
 								}
-								if (!check1)
+								else
 								{
-									dram->DRAMRequest(aux_temp.w_start_addr, false);
+									iswait = true;
 								}
-								if (!check2)
-								{
-									dram->DRAMRequest(aux_temp.w_end_addr, false);
-								}
-								vector<uint64_t>::iterator iter;
-								check1 = false;
-								check2 = false;
-								for (iter = buffer->req_output.begin(); iter != buffer->req_output.end(); iter++)
-								{
-									if (*iter == aux_temp.w_start_addr)
-										check1 = true;
-									if (*iter == aux_temp.w_end_addr)
-										check2 = true;
-								}
-								if (!check1)
-									buffer->req_output.push_back(aux_temp.w_start_addr);
-								if (!check2)
-									buffer->req_output.push_back(aux_temp.w_end_addr);
+								wait.o_addr.push_back(t);
 							}
 							else
 							{
-								macflag.wait = true;
+								buffer->mac1_count++;
+								dram->DRAMRequest(address, true);
 							}
-							wait.o_addr.push_back(t);
+							if (row_num == buffer->num_of_xrow)
+								macover = true;
+						}
+					}
+				}
+				else if (present[i].maciszero) // zero인 경우 계산 
+				{
+					present[i].maciszero = false;
+					present[i].first_get = true;
+					address = OUTPUT_START + (present[i].row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
+					cout<<"MAC1 Running... Row: "<<dec<<present[i].row<<" is zero row...."<<endl;
+					row_num++;
+					aux_temp.w_start_addr = address & mask;
+					aux_temp.w_end_addr = (address + 63) & mask;
+					if (aux_temp.w_start_addr != aux_temp.w_end_addr)
+					{
+						WaitTuple t;
+						t.o_start_addr = aux_temp.w_start_addr;
+						t.o_end_addr = aux_temp.w_end_addr;
+						t.start_comp = false;
+						t.end_comp = false;
+						if (!buffer->IsOutputFulled())
+						{
+							buffer->FillOutputBuffer();
+							vector<WaitTuple>::iterator find;
+							bool check1 = false, check2 = false;
+							for (find = wait.o_addr.begin(); find != wait.o_addr.end(); find++)
+							{
+								if (find->o_start_addr == aux_temp.w_start_addr ||
+									find->o_end_addr == aux_temp.w_start_addr)
+									check1 = true;
+								if (find->o_start_addr == aux_temp.w_end_addr ||
+									find->o_end_addr == aux_temp.w_end_addr)
+									check2 = true;
+							}
+							if (!check1)
+							{
+								dram->DRAMRequest(aux_temp.w_start_addr, false);
+							}
+							if (!check2)
+							{
+								dram->DRAMRequest(aux_temp.w_end_addr, false);
+							}
+							vector<uint64_t>::iterator iter;
+							check1 = false;
+							check2 = false;
+							for (iter = buffer->req_output.begin(); iter != buffer->req_output.end(); iter++)
+							{
+								if (*iter == aux_temp.w_start_addr)
+									check1 = true;
+								if (*iter == aux_temp.w_end_addr)
+									check2 = true;
+							}
+							if (!check1)
+								buffer->req_output.push_back(aux_temp.w_start_addr);
+							if (!check2)
+								buffer->req_output.push_back(aux_temp.w_end_addr);
 						}
 						else
 						{
-							buffer->mac1_count++;
-							dram->DRAMRequest(address, true);
+							iswait = true;
 						}
-						if (buffer->XEnd())
-							macover = true;
-					}
-				}
-			}
-			else if (macflag.maciszero) // zero인 경우 계산 
-			{
-				macflag.v_fold_over = true;
-				macflag.maciszero = false;
-				macflag.first_get = true;
-				address = OUTPUT_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
-				cout<<"MAC1 Running... Row: "<<dec<<present.row<<" is zero row...."<<endl;
-				aux_temp.w_start_addr = address & mask;
-				aux_temp.w_end_addr = (address + 63) & mask;
-				if (aux_temp.w_start_addr != aux_temp.w_end_addr)
-				{
-					WaitTuple t;
-					t.o_start_addr = aux_temp.w_start_addr;
-					t.o_end_addr = aux_temp.w_end_addr;
-					t.start_comp = false;
-					t.end_comp = false;
-					if (!buffer->IsOutputFulled())
-					{
-						buffer->FillOutputBuffer();
-						vector<WaitTuple>::iterator find;
-						bool check1 = false, check2 = false;
-						for (find = wait.o_addr.begin(); find != wait.o_addr.end(); find++)
-						{
-							if (find->o_start_addr == aux_temp.w_start_addr ||
-								find->o_end_addr == aux_temp.w_start_addr)
-								check1 = true;
-							if (find->o_start_addr == aux_temp.w_end_addr ||
-								find->o_end_addr == aux_temp.w_end_addr)
-								check2 = true;
-						}
-						if (!check1)
-						{
-							dram->DRAMRequest(aux_temp.w_start_addr, false);
-						}
-						if (!check2)
-						{
-							dram->DRAMRequest(aux_temp.w_end_addr, false);
-						}
-						vector<uint64_t>::iterator iter;
-						check1 = false;
-						check2 = false;
-						for (iter = buffer->req_output.begin(); iter != buffer->req_output.end(); iter++)
-						{
-							if (*iter == aux_temp.w_start_addr)
-								check1 = true;
-							if (*iter == aux_temp.w_end_addr)
-								check2 = true;
-						}
-						if (!check1)
-							buffer->req_output.push_back(aux_temp.w_start_addr);
-						if (!check2)
-							buffer->req_output.push_back(aux_temp.w_end_addr);
+						wait.o_addr.push_back(t);
 					}
 					else
 					{
-						macflag.wait = true;
+						buffer->mac1_count++;
+						dram->DRAMRequest(address, true);
 					}
-					wait.o_addr.push_back(t);
+					if (row_num == buffer->num_of_xrow)
+						macover = true;
 				}
-				else
+			}
+			else
+			{
+				if (!present[i].macisready)
 				{
-					buffer->mac1_count++;
-					dram->DRAMRequest(address, true);
+					if (present[i].first_get)
+					{
+						if (buffer->AuxIsFilled(A_ROW) && check_row == 0)
+						{
+							check_row = buffer->ReadMACData(A_ROW);
+							present_mac_row++;
+							remain_mac_col[present_mac_row] = check_row;
+						}
+						else if (!buffer->AuxIsFilled(A_ROW) && check_row == 0)
+							continue;
+						present[i].remain_mac_col = check_row;
+						present[i].row = present_mac_row;
+						present[i].first_get = false;
+						present[i].second_get = true;
+						if (present[i].remain_mac_col == 0)
+						{
+							present[i].maciszero = true;
+						}
+						if (check_row > 0)
+							check_row--;
+					}
+					if (present[i].remain_mac_col != 0 && 
+						buffer->AuxIsFilled(A_COL) &&
+						present[i].second_get &&
+						!present[i].maciszero)
+					{
+						present[i].col = buffer->ReadMACData(A_COL);
+						present[i].second_get = false;
+						present[i].fold_start = true;
+					}
+					if (buffer->AuxIsFilled(WEIGHT) && present[i].fold_start && !present[i].maciszero)
+					{
+						present[i].fold_start = false;
+						present[i].weight = buffer->ReadWeightTuple();
+						if (buffer->isReady(present[i].weight.tuple[0]) && buffer->isReady(present[i].weight.tuple[1]))
+							present[i].macisready = true;
+					}
+					else if (!present[i].first_get && !present[i].second_get && !present[i].fold_start && !present[i].maciszero)
+					{
+						if (buffer->isReady(present[i].weight.tuple[0]) && buffer->isReady(present[i].weight.tuple[1]))
+							present[i].macisready = true;
+					}
 				}
-				if (buffer->XEnd())
-					macover = true;
+				if (present[i].macisready)
+				{
+					cout<<"MAC2 Running... v_fold: "<<dec<<present[i].present_v_fold<<
+					", w_fold: "<<dec<<present_w_fold<<
+					", Row: "<<dec<<present[i].row<<
+					", Col: "<<dec<<present[i].col<<endl;
+					present[i].present_v_fold++;
+					if ((present[i].present_v_fold > v_fold && present_w_fold < w_fold) 
+						|| (present[i].present_v_fold > v_fold_last && present_w_fold == w_fold))
+					{
+						present[i].present_v_fold = 0;
+						remain_mac_col[present[i].row]--;
+						present[i].second_get = true;
+						present[i].first_get = true;
+						present[i].macisready = false;
+						present[i].fold_start = false;
+						buffer->Expire(present[i].weight.tuple[0]);
+						if (present[i].weight.tuple[0] != present[i].weight.tuple[1])
+							buffer->Expire(present[i].weight.tuple[1]);
+						present[i].macisready = false;
+						if (remain_mac_col[present[i].row] == 0)
+						{
+							cout<<"Row "<<dec<<present[i].row<<" is Complete."<<endl;
+							row_num++;
+							address = OUTPUT2_START + (present[i].row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
+							aux_temp.w_start_addr = address & mask;
+							aux_temp.w_end_addr = (address + 63) & mask;
+							if (aux_temp.w_start_addr != aux_temp.w_end_addr)
+							{
+								WaitTuple t;
+								t.o_start_addr = aux_temp.w_start_addr;
+								t.o_end_addr = aux_temp.w_end_addr;
+								t.start_comp = false;
+								t.end_comp = false;
+								if (!buffer->IsOutputFulled())
+								{
+									buffer->FillOutputBuffer();
+									vector<WaitTuple>::iterator find;
+									bool check1 = false, check2 = false;
+									for (find = wait.o_addr.begin(); find != wait.o_addr.end(); find++)
+									{
+										if (find->o_start_addr == aux_temp.w_start_addr ||
+											find->o_end_addr == aux_temp.w_start_addr)
+											check1 = true;
+										if (find->o_start_addr == aux_temp.w_end_addr ||
+											find->o_end_addr == aux_temp.w_end_addr)
+											check2 = true;
+									}
+									if (!check1)
+									{
+										dram->DRAMRequest(aux_temp.w_start_addr, false);
+									}
+									if (!check2)
+									{
+										dram->DRAMRequest(aux_temp.w_end_addr, false);
+									}
+									vector<uint64_t>::iterator iter;
+									check1 = false;
+									check2 = false;
+									for (iter = buffer->req_output.begin(); iter != buffer->req_output.end(); iter++)
+									{
+										if (*iter == aux_temp.w_start_addr)
+											check1 = true;
+										if (*iter == aux_temp.w_end_addr)
+											check2 = true;
+									}
+									if (!check1)
+										buffer->req_output.push_back(aux_temp.w_start_addr);
+									if (!check2)
+										buffer->req_output.push_back(aux_temp.w_end_addr);
+								}
+								else
+								{
+									iswait = true;
+								}
+								wait.o_addr.push_back(t);
+							}
+							else
+							{
+								buffer->mac2_count++;
+								dram->DRAMRequest(address, true);
+							}
+							if (row_num == buffer->num_of_arow)
+								macover = true;
+						}
+					}
+				}
+				else if (present[i].maciszero)
+				{
+					present[i].maciszero = false;
+					present[i].first_get = true;
+					address = OUTPUT2_START + (present[i].row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
+					cout<<"MAC2 Running... Row: "<<dec<<present[i].row<<" is zero row...."<<endl;
+					row_num++;
+					aux_temp.w_start_addr = address & mask;
+					aux_temp.w_end_addr = (address + 63) & mask;
+					if (aux_temp.w_start_addr != aux_temp.w_end_addr)
+					{
+						WaitTuple t;
+						t.o_start_addr = aux_temp.w_start_addr;
+						t.o_end_addr = aux_temp.w_end_addr;
+						t.start_comp = false;
+						t.end_comp = false;
+						if (!buffer->IsOutputFulled())
+						{
+							buffer->FillOutputBuffer();
+							vector<WaitTuple>::iterator find;
+							bool check1 = false, check2 = false;
+							for (find = wait.o_addr.begin(); find != wait.o_addr.end(); find++)
+							{
+								if (find->o_start_addr == aux_temp.w_start_addr ||
+									find->o_end_addr == aux_temp.w_start_addr)
+									check1 = true;
+								if (find->o_start_addr == aux_temp.w_end_addr ||
+									find->o_end_addr == aux_temp.w_end_addr)
+									check2 = true;
+							}
+							if (!check1)
+							{
+								dram->DRAMRequest(aux_temp.w_start_addr, false);
+							}
+							if (!check2)
+							{
+								dram->DRAMRequest(aux_temp.w_end_addr, false);
+							}
+							vector<uint64_t>::iterator iter;
+							check1 = false;
+							check2 = false;
+							for (iter = buffer->req_output.begin(); iter != buffer->req_output.end(); iter++)
+							{
+								if (*iter == aux_temp.w_start_addr)
+									check1 = true;
+								if (*iter == aux_temp.w_end_addr)
+									check2 = true;
+							}
+							if (!check1)
+								buffer->req_output.push_back(aux_temp.w_start_addr);
+							if (!check2)
+								buffer->req_output.push_back(aux_temp.w_end_addr);
+						}
+						else
+						{
+							iswait = true;
+						}
+						wait.o_addr.push_back(t);
+					}
+					else
+					{
+						buffer->mac2_count++;
+						dram->DRAMRequest(address, true);
+					}
+					if (row_num == buffer->num_of_arow)
+						macover = true;
+				}
 			}
 		}
 		else
 		{
-			if (!macflag.macisready)
+			if (!buffer->IsOutputFulled())
 			{
-				if (buffer->AuxIsFilled(A_ROW) && macflag.first_get)
+				buffer->FillOutputBuffer();
+				vector<WaitTuple>::iterator find;
+				bool check1 = false, check2 = false;
+				for (find = wait.o_addr.begin(); find != wait.o_addr.end(); find++)
 				{
-					remain_mac_col = buffer->ReadMACData(A_ROW);
-					present_mac_row++;
-					present.row = present_mac_row;
-					macflag.first_get = false;
-					macflag.second_get = true;
-					if (remain_mac_col == 0)
-					{
-						macflag.maciszero = true;
-					}
+					if (find->o_start_addr == aux_temp.w_start_addr ||
+						find->o_end_addr == aux_temp.w_start_addr)
+						check1 = true;
+					if (find->o_start_addr == aux_temp.w_end_addr ||
+						find->o_end_addr == aux_temp.w_end_addr)
+						check2 = true;
 				}
-				if (remain_mac_col != 0 && 
-					buffer->AuxIsFilled(A_COL) &&
-					macflag.second_get &&
-					!macflag.maciszero)
+				if (!check1)
 				{
-					present.col = buffer->ReadMACData(A_COL);
-					macflag.second_get = false;
-					macflag.fold_start = true;
+					dram->DRAMRequest(aux_temp.w_start_addr, false);
 				}
-				if (buffer->AuxIsFilled(WEIGHT) && macflag.fold_start && !macflag.maciszero)
+				if (!check2)
 				{
-					macflag.fold_start = false;
-					present.weight = buffer->ReadWeightTuple();
-					if (present_mac_row == 21)
-						cout<<hex<<present.weight.tuple[0]<<" "<<hex<<present.weight.tuple[1]<<endl;
-					if (buffer->isReady(present.weight.tuple[0]) && buffer->isReady(present.weight.tuple[1]))
-						macflag.macisready = true;
+					dram->DRAMRequest(aux_temp.w_end_addr, false);
 				}
-				else if (!macflag.first_get && !macflag.second_get && !macflag.fold_start && !macflag.maciszero)
+				vector<uint64_t>::iterator iter;
+				check1 = false;
+				check2 = false;
+				for (iter = buffer->req_output.begin(); iter != buffer->req_output.end(); iter++)
 				{
-					if (buffer->isReady(present.weight.tuple[0]) && buffer->isReady(present.weight.tuple[1]))
-						macflag.macisready = true;
+					if (*iter == aux_temp.w_start_addr)
+						check1 = true;
+					if (*iter == aux_temp.w_end_addr)
+						check2 = true;
 				}
+				if (!check1)
+					buffer->req_output.push_back(aux_temp.w_start_addr);
+				if (!check2)
+					buffer->req_output.push_back(aux_temp.w_end_addr);
+				iswait = false;
 			}
-			if (macflag.macisready)
-			{
-				cout<<"MAC2 Running... v_fold: "<<dec<<present_v_fold<<
-				", w_fold: "<<dec<<present_w_fold<<
-				", Row: "<<dec<<present.row<<
-				", Col: "<<dec<<present.col<<endl;
-				present_v_fold++;
-				if ((present_v_fold > v_fold && present_w_fold < w_fold) 
-					|| (present_v_fold > v_fold_last && present_w_fold == w_fold))
-				{
-					present_v_fold = 0;
-					remain_mac_col--;
-					macflag.v_fold_over = true;
-					macflag.second_get = true;
-					buffer->Expire(present.weight.tuple[0]);
-					if (present.weight.tuple[0] != present.weight.tuple[1])
-						buffer->Expire(present.weight.tuple[1]);
-					macflag.macisready = false;
-					if (remain_mac_col == 0)
-					{
-						macflag.first_get = true;
-						macflag.macisready = false;
-						macflag.fold_start = false;
-						cout<<"Row "<<dec<<present.row<<" is Complete."<<endl;
-						address = OUTPUT2_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
-						aux_temp.w_start_addr = address & mask;
-						aux_temp.w_end_addr = (address + 63) & mask;
-						if (aux_temp.w_start_addr != aux_temp.w_end_addr)
-						{
-							WaitTuple t;
-							t.o_start_addr = aux_temp.w_start_addr;
-							t.o_end_addr = aux_temp.w_end_addr;
-							t.start_comp = false;
-							t.end_comp = false;
-							if (!buffer->IsOutputFulled())
-							{
-								buffer->FillOutputBuffer();
-								vector<WaitTuple>::iterator find;
-								bool check1 = false, check2 = false;
-								for (find = wait.o_addr.begin(); find != wait.o_addr.end(); find++)
-								{
-									if (find->o_start_addr == aux_temp.w_start_addr ||
-										find->o_end_addr == aux_temp.w_start_addr)
-										check1 = true;
-									if (find->o_start_addr == aux_temp.w_end_addr ||
-										find->o_end_addr == aux_temp.w_end_addr)
-										check2 = true;
-								}
-								if (!check1)
-								{
-									dram->DRAMRequest(aux_temp.w_start_addr, false);
-								}
-								if (!check2)
-								{
-									dram->DRAMRequest(aux_temp.w_end_addr, false);
-								}
-								vector<uint64_t>::iterator iter;
-								check1 = false;
-								check2 = false;
-								for (iter = buffer->req_output.begin(); iter != buffer->req_output.end(); iter++)
-								{
-									if (*iter == aux_temp.w_start_addr)
-										check1 = true;
-									if (*iter == aux_temp.w_end_addr)
-										check2 = true;
-								}
-								if (!check1)
-									buffer->req_output.push_back(aux_temp.w_start_addr);
-								if (!check2)
-									buffer->req_output.push_back(aux_temp.w_end_addr);
-							}
-							else
-							{
-								macflag.wait = true;
-							}
-							wait.o_addr.push_back(t);
-						}
-						else
-						{
-							buffer->mac2_count++;
-							dram->DRAMRequest(address, true);
-						}
-						if (buffer->AEnd())
-							macover = true;
-					}
-				}
-			}
-			else if (macflag.maciszero)
-			{
-				macflag.v_fold_over = true;
-				macflag.maciszero = false;
-				macflag.first_get = true;
-				address = OUTPUT2_START + (present.row * buffer->weightsize.tuple[1] + present_w_fold * MAX_READ_INT) * UNIT_INT_BYTE;
-				cout<<"MAC2 Running... Row: "<<dec<<present.row<<" is zero row...."<<endl;
-				aux_temp.w_start_addr = address & mask;
-				aux_temp.w_end_addr = (address + 63) & mask;
-				if (aux_temp.w_start_addr != aux_temp.w_end_addr)
-				{
-					WaitTuple t;
-					t.o_start_addr = aux_temp.w_start_addr;
-					t.o_end_addr = aux_temp.w_end_addr;
-					t.start_comp = false;
-					t.end_comp = false;
-					if (!buffer->IsOutputFulled())
-					{
-						buffer->FillOutputBuffer();
-						vector<WaitTuple>::iterator find;
-						bool check1 = false, check2 = false;
-						for (find = wait.o_addr.begin(); find != wait.o_addr.end(); find++)
-						{
-							if (find->o_start_addr == aux_temp.w_start_addr ||
-								find->o_end_addr == aux_temp.w_start_addr)
-								check1 = true;
-							if (find->o_start_addr == aux_temp.w_end_addr ||
-								find->o_end_addr == aux_temp.w_end_addr)
-								check2 = true;
-						}
-						if (!check1)
-						{
-							dram->DRAMRequest(aux_temp.w_start_addr, false);
-						}
-						if (!check2)
-						{
-							dram->DRAMRequest(aux_temp.w_end_addr, false);
-						}
-						vector<uint64_t>::iterator iter;
-						check1 = false;
-						check2 = false;
-						for (iter = buffer->req_output.begin(); iter != buffer->req_output.end(); iter++)
-						{
-							if (*iter == aux_temp.w_start_addr)
-								check1 = true;
-							if (*iter == aux_temp.w_end_addr)
-								check2 = true;
-						}
-						if (!check1)
-							buffer->req_output.push_back(aux_temp.w_start_addr);
-						if (!check2)
-							buffer->req_output.push_back(aux_temp.w_end_addr);
-					}
-					else
-					{
-						macflag.wait = true;
-					}
-					wait.o_addr.push_back(t);
-				}
-				else
-				{
-					buffer->mac2_count++;
-					dram->DRAMRequest(address, true);
-				}
-				if (buffer->AEnd())
-					macover = true;
-			}
-		}
-	}
-	else
-	{
-		if (!buffer->IsOutputFulled())
-		{
-			buffer->FillOutputBuffer();
-			vector<WaitTuple>::iterator find;
-			bool check1 = false, check2 = false;
-			for (find = wait.o_addr.begin(); find != wait.o_addr.end(); find++)
-			{
-				if (find->o_start_addr == aux_temp.w_start_addr ||
-					find->o_end_addr == aux_temp.w_start_addr)
-					check1 = true;
-				if (find->o_start_addr == aux_temp.w_end_addr ||
-					find->o_end_addr == aux_temp.w_end_addr)
-					check2 = true;
-			}
-			if (!check1)
-			{
-				dram->DRAMRequest(aux_temp.w_start_addr, false);
-			}
-			if (!check2)
-			{
-				dram->DRAMRequest(aux_temp.w_end_addr, false);
-			}
-			vector<uint64_t>::iterator iter;
-			check1 = false;
-			check2 = false;
-			for (iter = buffer->req_output.begin(); iter != buffer->req_output.end(); iter++)
-			{
-				if (*iter == aux_temp.w_start_addr)
-					check1 = true;
-				if (*iter == aux_temp.w_end_addr)
-					check2 = true;
-			}
-			if (!check1)
-				buffer->req_output.push_back(aux_temp.w_start_addr);
-			if (!check2)
-				buffer->req_output.push_back(aux_temp.w_end_addr);
-			macflag.wait = false;
 		}
 	}
 	if (buffer->IsFilled(OUTPUT))
@@ -1008,6 +1041,18 @@ void Accelerator::Reset()
 	cheat.rowindex = 0;
 	cheat.colindex = 0;
 	cheat.valindex = 0;
-	macflag = {true, false, false, false, false, false, false};
 	macover = false;
+	for (int i = 0; i < parallel; i++)
+	{
+		present[i].present_v_fold = 0;
+		present[i].first_get = true;
+		present[i].second_get = false;
+		present[i].fold_start = false;
+		present[i].macisready = false;
+		present[i].maciszero = false;
+		present[i].isend = false;
+	}
+	check_over = parallel;
+	check_row = 0;
+	row_num = 0;
 }

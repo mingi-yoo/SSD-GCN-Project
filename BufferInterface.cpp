@@ -39,6 +39,9 @@ BufferInterface::BufferInterface(uint64_t axbuffersize,
 	mac1_count = data_->ifrowindex.size() - 1;
 	mac2_count = data_->adjrowindex.size() - 1;
 
+	num_of_xrow = mac1_count;
+	num_of_arow	= mac2_count;
+
 	present_ax_req = 0;
 	present_w_req = 0;
 
