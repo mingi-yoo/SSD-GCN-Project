@@ -41,8 +41,6 @@ public:
 	uint64_t present_w_req;
 	uint64_t mac1_count;
 	uint64_t mac2_count;
-	uint64_t num_of_xrow;
-	uint64_t num_of_arow;
 	bool isA;
 	vector<uint64_t> req_output;
 	OutputBuffer outputbuffer;

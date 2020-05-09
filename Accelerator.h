@@ -8,7 +8,6 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <cmath>
 #include "DRAMInterface.h"
 #include "BufferInterface.h"
 #include "Common.h"
@@ -47,14 +46,17 @@ struct Coordinate
 	uint64_t col;
 	float val;
 	Tuple weight;
-	uint64_t present_v_fold;
-	uint64_t remain_mac_col;
+};
+
+struct MACAuxFlag
+{
 	bool first_get;
 	bool second_get;
 	bool fold_start;
+	bool v_fold_over;
 	bool macisready;
 	bool maciszero;
-	bool isend;
+	bool wait;
 };
 
 struct TempRegister
@@ -91,11 +93,12 @@ private:
 	uint64_t x_col_addr;
 	uint64_t x_row_addr;
 	uint64_t remain_col_num;
-	uint64_t *remain_mac_col;
+	uint64_t remain_mac_col;
 	uint64_t w_fold;
 	uint64_t v_fold;
 	uint64_t v_fold_last;
 	uint64_t present_w_fold;
+	uint64_t present_v_fold;
 	uint64_t present_address;
 	uint64_t present_col;
 	uint64_t present_row;
@@ -107,18 +110,14 @@ private:
 	uint64_t mask;
 	bool macover;
 	bool programover;
-	bool iswait;
-	uint64_t parallel;
-	uint64_t check_over;
-	uint64_t check_row;
-	uint64_t row_num;
 	AXBuffer cheat; //리퀘스트가 더 가능한지 확인하는 변수
-	Coordinate *present; //MACController 처리용
+	Coordinate present; //MACController 처리용
 	DRAMInterface *dram;
 	BufferInterface *buffer;
 	Type need;
 	AccFlag flag;
 	EndFlag endflag;
+	MACAuxFlag macflag;
 	TempRegister temp;
 	TempRegister aux_temp;
 	WaitQueue wait;
